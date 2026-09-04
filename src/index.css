@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { @apply scroll-smooth bg-slate-50; }
+  html.dark { @apply bg-slate-950; }
+  body { @apply m-0 min-w-80 bg-slate-50 font-sans text-ink antialiased transition-colors duration-300; }
+  .dark body { @apply bg-slate-950 text-slate-100; }
+  button, input, select, textarea { font: inherit; }
+}
+
+@layer components {
+  .modern-toast {
+    @apply !mb-3 !rounded-2xl !border !border-slate-200 !bg-white !px-4 !py-3 !font-sans !text-sm !text-slate-700 !shadow-2xl;
+  }
+  .modern-toast-progress { @apply !h-1 !bg-gradient-to-r !from-brand-500 !to-amber-400; }
+  .field-label { @apply mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700; }
+  .field-input { @apply h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-100; }
+  .primary-button { @apply inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-brand-500 px-5 text-sm font-bold text-white shadow-lg shadow-orange-200 transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none; }
+  .secondary-button { @apply inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-5 text-sm font-bold text-blue-700 transition hover:border-blue-200 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40; }
+
+  .dark .modern-toast { @apply !border-slate-700 !bg-slate-900 !text-slate-100; }
+  .dark .field-label { @apply text-slate-300; }
+  .dark .field-input { @apply border-slate-700 bg-slate-950 text-slate-100 placeholder:text-slate-500 focus:border-brand-500 focus:ring-orange-950; }
+  .dark .primary-button { @apply bg-orange-800 text-orange-50 shadow-none hover:bg-orange-700; }
+  .dark .secondary-button { @apply border-blue-900/70 bg-blue-950/50 text-blue-300 hover:border-blue-800 hover:bg-blue-900/50; }
+}
+
+/* Ánh xạ các màu bề mặt dùng chung để toàn bộ các trang cũ hỗ trợ dark mode. */
+html.dark .bg-white { background-color: rgb(15 23 42); }
+html.dark .bg-slate-50 { background-color: rgb(2 6 23); }
+html.dark .bg-slate-100 { background-color: rgb(30 41 59); }
+html.dark .bg-slate-200 { background-color: rgb(51 65 85); }
+html.dark .bg-orange-50 { background-color: rgb(67 28 7 / .52); }
+html.dark .bg-blue-50 { background-color: rgb(23 37 84 / .58); }
+html.dark .bg-emerald-50 { background-color: rgb(2 44 34 / .6); }
+html.dark .bg-rose-50 { background-color: rgb(76 5 25 / .58); }
+html.dark .bg-violet-50 { background-color: rgb(46 16 101 / .55); }
+html.dark .bg-cyan-50 { background-color: rgb(8 51 68 / .58); }
+html.dark .bg-amber-50 { background-color: rgb(69 26 3 / .55); }
+
+html.dark .text-ink { color: rgb(248 250 252); }
+html.dark .text-slate-800,
+html.dark .text-slate-700 { color: rgb(226 232 240); }
+html.dark .text-slate-600 { color: rgb(203 213 225); }
+html.dark .text-slate-500 { color: rgb(148 163 184); }
+html.dark .text-slate-400 { color: rgb(100 116 139); }
+html.dark .text-emerald-600,
+html.dark .text-emerald-700 { color: rgb(110 231 183); }
+html.dark .text-blue-600,
+html.dark .text-blue-700 { color: rgb(147 197 253); }
+html.dark .text-rose-600 { color: rgb(253 164 175); }
+html.dark .text-violet-600 { color: rgb(196 181 253); }
+html.dark .text-cyan-600 { color: rgb(103 232 249); }
+
+html.dark .border-slate-100,
+html.dark .border-slate-200,
+html.dark .border-slate-300 { border-color: rgb(51 65 85); }
+html.dark .border-orange-100,
+html.dark .border-orange-200 { border-color: rgb(124 45 18); }
+html.dark .border-blue-100,
+html.dark .border-blue-200 { border-color: rgb(30 58 138); }
+html.dark .border-emerald-100 { border-color: rgb(6 78 59); }
+html.dark .border-rose-100 { border-color: rgb(136 19 55); }
+html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: rgb(51 65 85); }
+
+html.dark .hover\:bg-slate-100:hover { background-color: rgb(30 41 59); }
+html.dark .hover\:bg-slate-200:hover { background-color: rgb(51 65 85); }
+html.dark input[type="date"] { color-scheme: dark; }

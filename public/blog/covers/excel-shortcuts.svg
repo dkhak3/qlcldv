@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="t d">
+  <title id="t">Minh họa phím tắt Excel</title><desc id="d">Bảng tính và bàn phím trên nền xanh lá.</desc>
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#059669"/><stop offset="1" stop-color="#064e3b"/></linearGradient><filter id="s"><feDropShadow dx="0" dy="18" stdDeviation="22" flood-opacity=".2"/></filter></defs>
+  <rect width="1200" height="675" fill="url(#g)"/><circle cx="1070" cy="80" r="220" fill="#fff" opacity=".06"/><circle cx="100" cy="640" r="260" fill="#34d399" opacity=".18"/>
+  <g filter="url(#s)"><rect x="145" y="102" width="620" height="420" rx="28" fill="#f8fafc"/><rect x="145" y="102" width="620" height="70" rx="28" fill="#d1fae5"/><rect x="145" y="145" width="620" height="27" fill="#d1fae5"/>
+  <g stroke="#cbd5e1" stroke-width="3"><path d="M145 245h620M145 318h620M145 391h620M145 464h620"/><path d="M300 172v350M470 172v350M625 172v350"/></g><g fill="#10b981"><rect x="318" y="264" width="132" height="34" rx="8"/><rect x="488" y="337" width="118" height="34" rx="8"/><rect x="643" y="410" width="96" height="34" rx="8"/></g></g>
+  <g filter="url(#s)"><rect x="700" y="390" width="365" height="155" rx="24" fill="#0f172a"/><g fill="#334155"><rect x="735" y="425" width="72" height="72" rx="14"/><rect x="826" y="425" width="72" height="72" rx="14"/><rect x="917" y="425" width="112" height="72" rx="14"/></g><g fill="#fff" font-family="Arial,sans-serif" font-size="30" font-weight="700" text-anchor="middle"><text x="771" y="471">Ctrl</text><text x="862" y="471">⇧</text><text x="973" y="471">L</text></g></g>
+</svg>
