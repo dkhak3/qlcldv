@@ -7,6 +7,7 @@ import BlogPage from "./BlogPage";
 import CategoryAdminPage from "./CategoryAdminPage";
 import DonatePage from "./DonatePage";
 import DonationAdminPage from "./DonationAdminPage";
+import TopDonateAdminPage from "./TopDonateAdminPage";
 import NotFoundPage from "./NotFoundPage";
 import PageSettingsAdminPage from "./PageSettingsAdminPage";
 import ReportBoxAdminPage from "./ReportBoxAdminPage";
@@ -22,6 +23,7 @@ const COMPONENTS = {
   "box-admin": ReportBoxAdminPage,
   "user-admin": UserAdminPage,
   "donate-admin": DonationAdminPage,
+  "top-donate-admin": TopDonateAdminPage,
   "page-admin": PageSettingsAdminPage,
 };
 

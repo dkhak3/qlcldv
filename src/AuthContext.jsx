@@ -67,6 +67,7 @@ export function AuthProvider({ children }) {
     canManageBlog: role === "admin" || role === "superadmin",
     canManageUsers: role === "admin" || role === "superadmin",
     canManageReports: role === "admin" || role === "superadmin",
+    canManageDonate: role === "admin" || role === "superadmin",
     isSuperAdmin: role === "superadmin",
     refreshProfile: () => loadProfile(user),
     signIn: async (username, password) => {

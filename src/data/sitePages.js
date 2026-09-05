@@ -7,5 +7,6 @@ export const DEFAULT_SITE_PAGES = [
   { key: "box-admin", title: "Quản lý Box báo cáo", slug: "quan-ly-box", hidden: false, roles: ["admin", "superadmin"] },
   { key: "user-admin", title: "Quản lý User", slug: "quan-ly-user", hidden: false, roles: ["admin", "superadmin"] },
   { key: "donate-admin", title: "Quản lý Donate", slug: "quan-ly-donate", hidden: false, roles: ["superadmin"] },
+  { key: "top-donate-admin", title: "Quản lý Top Donate", slug: "quan-ly-top-donate", hidden: false, roles: ["admin", "superadmin"] },
   { key: "page-admin", title: "Quản lý trang & slug", slug: "quan-ly-trang", hidden: false, roles: ["superadmin"] },
 ];

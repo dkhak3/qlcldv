@@ -22,6 +22,7 @@ import NotFoundPage from "./pages/NotFoundPage";
 import CategoryAdminPage from "./pages/CategoryAdminPage";
 import DonatePage from "./pages/DonatePage";
 import DonationAdminPage from "./pages/DonationAdminPage";
+import TopDonateAdminPage from "./pages/TopDonateAdminPage";
 import SavedReportsPage from "./pages/SavedReportsPage";
 import PageSettingsAdminPage from "./pages/PageSettingsAdminPage";
 import ManagedPageResolver from "./pages/ManagedPageResolver";
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="/admin/users" element={<ProtectedRoute roles={["admin", "superadmin"]}><ManagedPageGate pageKey="user-admin"><UserAdminPage /></ManagedPageGate></ProtectedRoute>} />
         <Route path="/admin/report-boxes" element={<ProtectedRoute roles={["admin", "superadmin"]}><ManagedPageGate pageKey="box-admin"><ReportBoxAdminPage /></ManagedPageGate></ProtectedRoute>} />
         <Route path="/admin/donate" element={<ProtectedRoute roles={["superadmin"]}><ManagedPageGate pageKey="donate-admin"><DonationAdminPage /></ManagedPageGate></ProtectedRoute>} />
+        <Route path="/admin/top-donate" element={<ProtectedRoute roles={["admin", "superadmin"]}><ManagedPageGate pageKey="top-donate-admin"><TopDonateAdminPage /></ManagedPageGate></ProtectedRoute>} />
         <Route path="/admin/pages" element={<ProtectedRoute roles={["superadmin"]}><ManagedPageGate pageKey="page-admin"><PageSettingsAdminPage /></ManagedPageGate></ProtectedRoute>} />
         <Route path="/bao-cao/:slug" element={<ProtectedRoute><DynamicReportPage /></ProtectedRoute>} />
         <Route path="/:managedSlug" element={<ManagedPageResolver />} />

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Check, Copy, CreditCard, HandCoins, Heart, Landmark, LoaderCircle, ShieldCheck, WalletCards } from "lucide-react";
 import { toast } from "react-toastify";
 import NoData from "../components/NoData";
+import TopDonateSection from "../components/TopDonateSection";
 import { getDonationMethod } from "../data/donationMethods";
 import { getDonationAccounts } from "../services/donationService";
 
@@ -44,7 +45,10 @@ export default function DonatePage() {
       <span className="relative mt-5 inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-500 shadow-sm dark:bg-slate-900/70 dark:text-slate-300"><ShieldCheck size={15} className="text-emerald-500"/>Hãy kiểm tra đúng tên người nhận trước khi chuyển khoản</span>
     </div>
 
-    {loading ? <div className="flex min-h-72 items-center justify-center"><LoaderCircle className="animate-spin text-rose-500" size={34}/></div> : accounts.length ? <div className="mt-8 grid gap-5 md:grid-cols-2">{accounts.map(account => {
+    <TopDonateSection/>
+
+    <div className="mt-10"><span className="text-xs font-bold uppercase tracking-[.17em] text-rose-500">Thông tin chuyển khoản</span><h2 className="mt-2 text-2xl font-bold text-ink dark:text-white">Phương thức ủng hộ</h2></div>
+    {loading ? <div className="flex min-h-72 items-center justify-center"><LoaderCircle className="animate-spin text-rose-500" size={34}/></div> : accounts.length ? <div className="mt-5 grid gap-5 md:grid-cols-2">{accounts.map(account => {
       const method = getDonationMethod(account.methodType);
       return <article key={account.id} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-card transition hover:-translate-y-0.5 hover:shadow-soft dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-start gap-4 p-6">
