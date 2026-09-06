@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import FileSaver from "file-saver";
-import { formatDateVi, normalizeText } from "./cameraProcessor.js";
+import { normalizeText } from "./cameraProcessor.js";
+import { applyStandardReportHeader } from "./reportHeader.js";
 
 const { saveAs } = FileSaver;
 const TEMPLATE_URL = "/templates/CITYBUS-BAO-CAO-HO-TRO-GSTT-BP-QLCL-DV.xlsx";
@@ -82,7 +83,7 @@ export async function buildGsttReportWorkbook(templateBuffer, { results, startDa
   if (!sheet) throw new Error("Không tìm thấy sheet SP BP.GSTT trong file mẫu Hỗ trợ GSTT");
 
   prepareDynamicRows(sheet, results);
-  sheet.getCell("A1").value = `BÁO CÁO CÔNG VIỆC BỘ PHẬN QUẢN LÝ CLDV CITYBUS\n(Từ ngày ${formatDateVi(startDate)} đến ngày ${formatDateVi(endDate)})`;
+  applyStandardReportHeader(sheet, startDate, endDate);
   sheet.getCell("A4").value = `Họ & Tên: ${employees.trim()}`;
   fillReport(sheet, results);
 

@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import FileSaver from "file-saver";
-import { formatDateVi, normalizeText } from "./cameraProcessor.js";
+import { normalizeText } from "./cameraProcessor.js";
+import { applyStandardReportHeader } from "./reportHeader.js";
 
 const { saveAs } = FileSaver;
 
@@ -59,7 +60,7 @@ export async function buildCameraReportWorkbook(templateBuffer, { results, start
   const sheet = workbook.getWorksheet("BCTH P.QLCL");
   if (!sheet) throw new Error("Không tìm thấy sheet BCTH P.QLCL trong file mẫu mới");
   prepareDynamicRows(sheet, results);
-  sheet.getCell("A1").value = `BÁO CÁO CÔNG VIỆC BỘ PHẬN QUẢN LÝ CLDV CITYBUS\n(Từ ngày ${formatDateVi(startDate)} đến ngày ${formatDateVi(endDate)})`;
+  applyStandardReportHeader(sheet, startDate, endDate);
   sheet.getCell("A4").value = `Họ & Tên: ${employees.trim()}`;
 
   results.forEach(group => {
