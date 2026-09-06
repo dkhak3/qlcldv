@@ -1,5 +1,8 @@
-import { addDoc, collection, deleteDoc, doc, getDocs, serverTimestamp, updateDoc } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { firestore } from "../lib/firebaseClient";
+
+const DONATION_SETTINGS_COLLECTION = "donation_settings";
+const DONATION_SETTINGS_DOCUMENT = "general";
 
 const mapAccount = snapshot => ({
   methodType: "bank",
@@ -37,4 +40,25 @@ export async function saveDonationAccount(account) {
 
 export async function deleteDonationAccount(id) {
   await deleteDoc(doc(firestore, "donation_accounts", id));
+}
+
+export async function getDonationSettings() {
+  const snapshot = await getDoc(doc(firestore, DONATION_SETTINGS_COLLECTION, DONATION_SETTINGS_DOCUMENT));
+  return {
+    hidden: snapshot.exists() ? Boolean(snapshot.data().hidden) : false,
+    updatedAt: snapshot.data()?.updatedAt?.toDate?.()?.toISOString?.() || "",
+  };
+}
+
+export async function setDonationVisibility(hidden) {
+  const nextSettings = {
+    hidden: Boolean(hidden),
+    updatedAt: serverTimestamp(),
+  };
+  await setDoc(
+    doc(firestore, DONATION_SETTINGS_COLLECTION, DONATION_SETTINGS_DOCUMENT),
+    nextSettings,
+    { merge: true },
+  );
+  return { hidden: nextSettings.hidden };
 }

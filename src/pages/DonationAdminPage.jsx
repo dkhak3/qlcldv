@@ -5,6 +5,8 @@ import {
   Eye,
   EyeOff,
   HandCoins,
+  Heart,
+  HeartOff,
   Image as ImageIcon,
   Landmark,
   LoaderCircle,
@@ -19,7 +21,7 @@ import { toast } from "react-toastify";
 import ConfirmDialog from "../components/ConfirmDialog";
 import Pagination, { pageItems } from "../components/Pagination";
 import { DONATION_METHODS, VIETNAM_BANKS, getDonationMethod } from "../data/donationMethods";
-import { deleteDonationAccount, getDonationAccounts, saveDonationAccount } from "../services/donationService";
+import { deleteDonationAccount, getDonationAccounts, getDonationSettings, saveDonationAccount, setDonationVisibility } from "../services/donationService";
 import { uploadBlogImage } from "../services/blogService";
 
 const emptyAccount = {
@@ -98,12 +100,21 @@ export default function DonationAdminPage() {
   const [editor, setEditor] = useState(undefined);
   const [target, setTarget] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [donationSettings, setDonationSettings] = useState({ hidden: false });
+  const [visibilityDialog, setVisibilityDialog] = useState(false);
+  const [visibilityBusy, setVisibilityBusy] = useState(false);
   const [page, setPage] = useState(1);
 
   const load = async () => {
-    try { setAccounts(await getDonationAccounts()); }
-    catch (error) { toast.error(error.message || "Không thể tải các phương thức Donate"); }
-    finally { setLoading(false); }
+    const [accountsResult, settingsResult] = await Promise.allSettled([
+      getDonationAccounts(),
+      getDonationSettings(),
+    ]);
+    if (accountsResult.status === "fulfilled") setAccounts(accountsResult.value);
+    else toast.error(accountsResult.reason?.message || "Không thể tải các phương thức Donate");
+    if (settingsResult.status === "fulfilled") setDonationSettings(settingsResult.value);
+    else toast.error(settingsResult.reason?.message || "Không thể tải trạng thái Donate");
+    setLoading(false);
   };
   useEffect(() => { load(); }, []);
   const paged = pageItems(accounts, page, 8);
@@ -122,12 +133,36 @@ export default function DonationAdminPage() {
     }
   };
 
+  const toggleDonationVisibility = async () => {
+    setVisibilityBusy(true);
+    try {
+      const nextSettings = await setDonationVisibility(!donationSettings.hidden);
+      setDonationSettings(current => ({ ...current, ...nextSettings }));
+      setVisibilityDialog(false);
+      toast.success(nextSettings.hidden ? "Đã ẩn lời kêu gọi và phương thức ủng hộ" : "Đã hiển thị lại Donate");
+    } catch (error) {
+      toast.error(error.message || "Không thể cập nhật trạng thái Donate");
+    } finally {
+      setVisibilityBusy(false);
+    }
+  };
+
   return <section className="mx-auto max-w-6xl px-4 py-9 sm:px-6 sm:py-12 lg:px-8">
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[.17em] text-rose-600 dark:text-rose-300"><HandCoins size={16}/>SuperAdmin</span><h1 className="mt-3 text-3xl font-bold text-ink dark:text-white">Quản lý Donate</h1><p className="mt-2 max-w-2xl text-sm text-slate-500 dark:text-slate-400">Quản lý nhiều ngân hàng, ví điện tử và mã QR. Bạn có thể sắp xếp hoặc ẩn từng phương thức.</p></div><button className="primary-button" onClick={() => setEditor(null)}><Plus size={18}/>Thêm phương thức</button></div>
+    <div className={`mt-7 overflow-hidden rounded-3xl border p-5 shadow-card sm:p-6 ${donationSettings.hidden ? "border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 dark:border-amber-900/60 dark:from-amber-950/30 dark:to-orange-950/20" : "border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 dark:border-emerald-900/60 dark:from-emerald-950/30 dark:to-teal-950/20"}`}>
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-4">
+          <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl ${donationSettings.hidden ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"}`}>{donationSettings.hidden ? <HeartOff size={23}/> : <Heart size={23}/>}</span>
+          <div><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold text-ink dark:text-white">Trạng thái nhận Donate</h2><span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${donationSettings.hidden ? "bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-200" : "bg-emerald-200 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-200"}`}>{donationSettings.hidden ? "Đang tạm ẩn" : "Đang hiển thị"}</span></div><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">{donationSettings.hidden ? "Lời kêu gọi, tài khoản và mã QR đang được ẩn. Trang Donate chỉ hiển thị lời tri ân và Bảng Vàng Ủng Hộ." : "Lời kêu gọi cùng các phương thức ủng hộ đang hiển thị bình thường. Bảng Vàng luôn được giữ lại để trân trọng ghi nhận anh em đã đồng hành."}</p></div>
+        </div>
+        <button type="button" onClick={() => setVisibilityDialog(true)} className={`secondary-button shrink-0 ${donationSettings.hidden ? "!border-emerald-300 !text-emerald-700 dark:!border-emerald-800 dark:!text-emerald-300" : "!border-amber-300 !text-amber-700 dark:!border-amber-800 dark:!text-amber-300"}`}>{donationSettings.hidden ? <Eye size={17}/> : <EyeOff size={17}/>} {donationSettings.hidden ? "Hiện Donate" : "Ẩn Donate"}</button>
+      </div>
+    </div>
     <div className="mt-7 rounded-2xl border border-rose-100 bg-gradient-to-r from-rose-50 to-orange-50 p-4 text-sm text-slate-600 dark:border-rose-950/60 dark:from-rose-950/30 dark:to-orange-950/20 dark:text-slate-300"><span className="inline-flex items-center gap-2 font-bold text-rose-600 dark:text-rose-300"><QrCode size={18}/>Gợi ý</span><p className="mt-1 leading-6">Có thể thêm nhiều tài khoản cùng ngân hàng hoặc nhiều ví khác nhau. Mục có thứ tự nhỏ hơn sẽ được hiển thị trước.</p></div>
     {loading ? <div className="flex min-h-72 items-center justify-center"><LoaderCircle className="animate-spin" size={34}/></div> : accounts.length ? <div className="mt-7 grid gap-5 md:grid-cols-2">{paged.items.map(account => { const method = getDonationMethod(account.methodType); return <article key={account.id} className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-card dark:border-slate-800 dark:bg-slate-900 ${account.hidden ? "opacity-60" : ""}`}><div className="flex items-start justify-between"><span className="grid h-11 w-11 place-items-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-300"><MethodIcon type={account.methodType}/></span><span className="inline-flex items-center gap-1 text-xs font-bold text-slate-400">{account.hidden ? <EyeOff size={14}/> : <Eye size={14}/>} {account.hidden ? "Đang ẩn" : "Đang hiện"}</span></div><span className="mt-4 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-300">{method.label}</span><h2 className="mt-2 font-bold text-ink dark:text-white">{account.bankName}</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{method.accountLabel}: <b>{account.accountNumber}</b></p><p className="mt-1 text-xs text-slate-400">Người nhận: {account.accountName}{account.branch ? ` · ${account.branch}` : ""}</p><div className="mt-5 grid grid-cols-2 gap-2"><button className="secondary-button !h-10" onClick={() => setEditor(account)}><Edit3 size={16}/>Sửa</button><button className="secondary-button !h-10 !text-rose-600" onClick={() => setTarget(account)}><Trash2 size={16}/>Xóa</button></div></article>; })}</div> : <div className="mt-7 rounded-2xl border border-dashed border-slate-300 p-12 text-center dark:border-slate-700"><HandCoins className="mx-auto text-slate-300" size={38}/><h2 className="mt-4 font-bold text-slate-700 dark:text-slate-200">Chưa có phương thức Donate</h2><p className="mt-2 text-sm text-slate-400">Nhấn “Thêm phương thức” để tạo tài khoản nhận ủng hộ đầu tiên.</p></div>}
     <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><Pagination page={paged.safePage} pageCount={paged.pageCount} onChange={setPage}/></div>
-    {editor !== undefined && <AccountEditor account={editor} onClose={() => setEditor(undefined)} onSaved={saved => { setAccounts(current => (editor ? current.map(item => item.id === saved.id ? saved : item) : [...current, saved]).sort((a, b) => (a.sortOrder || 99) - (b.sortOrder || 99))); setEditor(undefined); toast.success("Đã lưu phương thức Donate"); }}/>}
-    {target && <ConfirmDialog danger title="Xóa phương thức Donate?" description={`${target.bankName} – ${target.accountNumber} sẽ bị xóa.`} confirmLabel="Xóa" busy={busy} onClose={() => setTarget(null)} onConfirm={remove}/>}
+    {editor !== undefined && <AccountEditor account={editor} onClose={() => setEditor(undefined)} onSaved={saved => { setAccounts(current => (editor ? current.map(item => item.id === saved.id ? saved : item) : [...current, saved]).sort((a, b) => (a.sortOrder || 99) - (b.sortOrder || 99))); setEditor(undefined); toast.success("Đã lưu phương thức Donate"); }}/>} 
+    {target && <ConfirmDialog danger title="Xóa phương thức Donate?" description={`${target.bankName} – ${target.accountNumber} sẽ bị xóa.`} confirmLabel="Xóa" busy={busy} onClose={() => setTarget(null)} onConfirm={remove}/>} 
+    {visibilityDialog && <ConfirmDialog danger={!donationSettings.hidden} title={donationSettings.hidden ? "Hiển thị lại Donate?" : "Tạm ẩn Donate?"} description={donationSettings.hidden ? "Lời kêu gọi, phương thức chuyển khoản và mã QR sẽ xuất hiện trở lại trên trang Donate." : "Lời kêu gọi, phương thức chuyển khoản và mã QR sẽ được ẩn. Lời tri ân cùng Bảng Vàng Ủng Hộ vẫn tiếp tục hiển thị."} confirmLabel={donationSettings.hidden ? "Hiện Donate" : "Ẩn Donate"} busy={visibilityBusy} onClose={() => setVisibilityDialog(false)} onConfirm={toggleDonationVisibility}/>} 
   </section>;
 }

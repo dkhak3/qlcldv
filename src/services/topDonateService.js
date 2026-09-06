@@ -41,6 +41,18 @@ export function sortTopDonates(items) {
   });
 }
 
+export function rankTopDonates(items) {
+  let rank = 0;
+  let previousAmount = null;
+
+  return sortTopDonates(items).map(item => {
+    const amount = Number(item.amount || 0);
+    if (previousAmount === null || amount !== previousAmount) rank += 1;
+    previousAmount = amount;
+    return { ...item, rank };
+  });
+}
+
 export async function getTopDonates({ includeHidden = false } = {}) {
   const snapshots = await getDocs(collection(firestore, COLLECTION_NAME));
   const items = snapshots.docs.map(mapTopDonate);

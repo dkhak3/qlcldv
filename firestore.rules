@@ -50,6 +50,12 @@ service cloud.firestore {
         allow create, update, delete: if isSuperAdmin();
       }
 
+      match /donation_settings/{settingId} {
+        allow read: if signedIn();
+        allow create, update: if isSuperAdmin();
+        allow delete: if false;
+      }
+
       match /top_donates/{donateId} {
         allow read: if signedIn();
         allow create, update, delete: if isEditor();
