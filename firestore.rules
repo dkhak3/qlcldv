@@ -42,8 +42,8 @@ service cloud.firestore {
         allow update: if isEditor()
           && request.resource.data.key == resource.data.key;
         allow delete: if isEditor()
-          && !(boxId in ['camera', 'gps', 'txdl', 'speed-4h', 'gstt'])
-          && !(resource.data.key in ['camera', 'gps', 'txdl', 'speed-4h', 'gstt']);
+          && !(boxId in ['camera', 'gps', 'txdl', 'speed-4h', 'gstt', 'hau-kiem'])
+          && !(resource.data.key in ['camera', 'gps', 'txdl', 'speed-4h', 'gstt', 'hau-kiem']);
       }
 
       match /blog_categories/{categoryId} {

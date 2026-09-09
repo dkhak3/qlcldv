@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="t d">
+  <title id="t">Minh họa thư mục báo cáo tuần</title><desc id="d">Các thư mục được sắp xếp theo tuần trên nền xanh ngọc.</desc>
+  <defs><linearGradient id="g" x1="0" y1="1" x2="1"><stop stop-color="#0891b2"/><stop offset="1" stop-color="#1e3a8a"/></linearGradient><filter id="s"><feDropShadow dx="0" dy="22" stdDeviation="22" flood-opacity=".25"/></filter></defs>
+  <rect width="1200" height="675" fill="url(#g)"/><circle cx="1050" cy="120" r="260" fill="#67e8f9" opacity=".1"/><path d="M0 590L1200 300v375H0z" fill="#fff" opacity=".05"/>
+  <g filter="url(#s)" font-family="Arial,sans-serif" font-weight="700"><g transform="translate(120 150)"><path d="M0 60h170l42 45h285v260H0z" fill="#fde68a"/><path d="M0 105h497v260H0z" fill="#fbbf24"/><rect x="55" y="170" width="385" height="100" rx="18" fill="#fff"/><text x="248" y="230" fill="#1e3a8a" font-size="31" text-anchor="middle">TUẦN 01 • THÁNG 09</text></g><g transform="translate(680 245)"><path d="M0 45h135l34 38h250v225H0z" fill="#bfdbfe"/><path d="M0 83h419v225H0z" fill="#60a5fa"/><rect x="47" y="140" width="325" height="92" rx="16" fill="#fff"/><text x="210" y="196" fill="#1e3a8a" font-size="28" text-anchor="middle">31.08 – 06.09</text></g></g>
+</svg>

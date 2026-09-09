@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="t d">
+  <title id="t">Minh họa kiểm tra file</title><desc id="d">Tệp Excel cùng danh sách kiểm tra trên nền tím.</desc>
+  <defs><linearGradient id="g" x1="0" y1="1" x2="1"><stop stop-color="#7c3aed"/><stop offset="1" stop-color="#4c1d95"/></linearGradient><filter id="s"><feDropShadow dx="0" dy="18" stdDeviation="24" flood-opacity=".22"/></filter></defs>
+  <rect width="1200" height="675" fill="url(#g)"/><circle cx="80" cy="90" r="210" fill="#fff" opacity=".06"/><circle cx="1130" cy="620" r="250" fill="#a78bfa" opacity=".12"/>
+  <g filter="url(#s)"><path d="M190 100h360l120 120v355H190z" fill="#fff"/><path d="M550 100v120h120" fill="#ede9fe"/><rect x="265" y="250" width="330" height="210" rx="20" fill="#f5f3ff"/><path d="M330 310l24 24 48-58M330 378l24 24 48-58" fill="none" stroke="#7c3aed" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/><path d="M430 312h110M430 380h110" stroke="#c4b5fd" stroke-width="18" stroke-linecap="round"/></g>
+  <g filter="url(#s)"><circle cx="820" cy="360" r="170" fill="#22c55e"/><path d="M735 362l55 55 125-145" fill="none" stroke="#fff" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/></g>
+</svg>
