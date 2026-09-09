@@ -4,6 +4,7 @@ import { BookOpenText, CalendarDays, Check, ChevronDown, Database, Edit3, Eye, F
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "../AuthContext";
+import BlogContentEditor from "../components/BlogContentEditor";
 import BlogCover from "../components/BlogCover";
 import Pagination, { pageItems } from "../components/Pagination";
 import { getBlogCategories } from "../services/blogCategoryService";
@@ -23,7 +24,7 @@ function MediaPicker({ icon: Icon, label, hint, accept, file, url, onChange, onR
   const preview = useMemo(() => file ? URL.createObjectURL(file) : url, [file, url]);
   useEffect(() => () => { if (file && preview) URL.revokeObjectURL(preview); }, [file, preview]);
   return <div><span className="field-label"><Icon size={17}/>{label}</span><label className="group flex min-h-32 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-center transition hover:border-orange-300 hover:bg-orange-50/40 dark:border-slate-700 dark:bg-slate-950/60 dark:hover:border-orange-800">
-    {preview ? <img className="max-h-56 w-full object-cover" src={preview} alt="Xem trước ảnh bìa"/> : <><span className="grid h-11 w-11 place-items-center rounded-xl bg-white text-brand-600 shadow-sm dark:bg-slate-800 dark:text-orange-300"><UploadCloud size={22}/></span><b className="mt-3 text-sm text-slate-700 dark:text-slate-200">Chọn {label.toLowerCase()}</b><small className="mt-1 px-4 text-xs text-slate-400">{hint}</small></>}
+    {preview ? <div className="grid h-56 w-full place-items-center bg-slate-900"><img className="h-full w-full object-contain" src={preview} alt="Xem trước ảnh bìa"/></div> : <><span className="grid h-11 w-11 place-items-center rounded-xl bg-white text-brand-600 shadow-sm dark:bg-slate-800 dark:text-orange-300"><UploadCloud size={22}/></span><b className="mt-3 text-sm text-slate-700 dark:text-slate-200">Chọn {label.toLowerCase()}</b><small className="mt-1 px-4 text-xs text-slate-400">{hint}</small></>}
     <input className="sr-only" type="file" accept={accept} onChange={onChange}/>
   </label>{preview && <div className="mt-2 flex items-center justify-between gap-3"><span className="min-w-0 truncate text-xs text-slate-400">{file?.name || "Ảnh đang lưu trên ImgBB"}</span><button type="button" onClick={onRemove} className="shrink-0 text-xs font-bold text-rose-600 hover:text-rose-700">Xóa ảnh khỏi bài</button></div>}</div>;
 }
@@ -49,7 +50,6 @@ function EditorModal({ post, author, onClose, onSave, posts, categories }) {
     const baseSlug = slugifyBlogTitle(form.slug || form.title);
     const slug = post ? (posts.some(item => item.slug === baseSlug && item.id !== post.id) ? createRandomBlogSlug(baseSlug, posts.map(item => item.slug)) : baseSlug) : createRandomBlogSlug(baseSlug, posts.map(item => item.slug));
     if (!form.title.trim() || !slug || !form.excerpt.trim() || !form.content.trim()) return toast.warning("Vui lòng nhập đủ tiêu đề, mô tả và nội dung bài viết");
-    if (!coverFile && (!form.coverUrl || removeCover)) return toast.warning("Mỗi bài Blog cần có một ảnh bìa");
     if (form.videoUrl && !isGoogleDriveUrl(form.videoUrl)) return toast.error("Video phải là liên kết file Google Drive");
     setSaving(true);
     try {
@@ -66,10 +66,10 @@ function EditorModal({ post, author, onClose, onSave, posts, categories }) {
         <label><span className="field-label">Tác giả</span><input className="field-input" value={form.author} onChange={event => set("author", event.target.value)} /></label>
         <label><span className="field-label">Chuyên mục</span>{categories.length ? <span className="relative block"><select className="field-input appearance-none" value={form.category} onChange={event => set("category", event.target.value)}>{categories.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}</select><ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={17}/></span> : <input className="field-input" value={form.category} onChange={event => set("category", event.target.value)} placeholder="Hãy tạo chuyên mục trước"/>}</label>
         <label><span className="field-label">Trạng thái</span><span className="relative block"><select className="field-input appearance-none" value={form.status} onChange={event => set("status", event.target.value)}><option value="draft">Bản nháp</option><option value="published">Đã xuất bản</option></select><ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={17}/></span></label>
-        <MediaPicker icon={ImageIcon} label="Ảnh bìa" hint="JPG, PNG, WebP hoặc GIF • tối đa 3 MB • lưu tại ImgBB" accept="image/jpeg,image/png,image/webp,image/gif" file={coverFile} url={removeCover ? "" : form.coverUrl} onChange={chooseCover} onRemove={() => { setCoverFile(null); setRemoveCover(true); }}/>
+        <MediaPicker icon={ImageIcon} label="Ảnh bìa (không bắt buộc)" hint="Ảnh dọc, ngang hoặc vuông đều tự căn đẹp • tối đa 3 MB" accept="image/jpeg,image/png,image/webp,image/gif" file={coverFile} url={removeCover ? "" : form.coverUrl} onChange={chooseCover} onRemove={() => { setCoverFile(null); setRemoveCover(true); }}/>
         <label><span className="field-label"><Video size={17}/>Video Google Drive (không bắt buộc)</span><input className="field-input" type="url" value={form.videoUrl} onChange={event => set("videoUrl", event.target.value)} placeholder="https://drive.google.com/file/d/.../view"/><small className="mt-1.5 block text-xs text-slate-400">Đặt quyền video là “Bất kỳ ai có đường liên kết – Người xem”.</small></label>
         <label className="lg:col-span-2"><span className="field-label">Mô tả ngắn</span><textarea className="field-input !h-24 !py-3" value={form.excerpt} onChange={event => set("excerpt", event.target.value)} placeholder="Tóm tắt nội dung hiển thị trên thẻ bài viết"/></label>
-        <label className="lg:col-span-2"><span className="field-label">Nội dung</span><textarea className="field-input !h-64 !py-3 leading-7" value={form.content} onChange={event => set("content", event.target.value)} placeholder={"Nhập nội dung bài viết...\n\n## Tiêu đề mục\n\n- Một ý trong danh sách"}/><small className="mt-1.5 block text-xs text-slate-400">Hỗ trợ tiêu đề dạng <b>## Tiêu đề</b> và danh sách dạng <b>- Nội dung</b>.</small></label>
+        <div className="lg:col-span-2"><BlogContentEditor value={form.content} onChange={value => set("content", value)}/></div>
         <label className="lg:col-span-2"><span className="field-label">Thẻ nội dung</span><input className="field-input" value={form.tags} onChange={event => set("tags", event.target.value)} placeholder="Excel, Camera, Mẹo hay (phân cách bằng dấu phẩy)"/></label>
         <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/60 lg:col-span-2"><input type="checkbox" checked={form.featured} onChange={event => set("featured", event.target.checked)} className="h-4 w-4 accent-orange-500"/><span><b className="block text-sm text-slate-700 dark:text-slate-200">Đặt làm bài viết nổi bật</b><small className="text-xs text-slate-400">Bài viết nổi bật cũ sẽ tự động được bỏ chọn.</small></span></label>
       </div>

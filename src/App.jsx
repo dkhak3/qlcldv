@@ -24,9 +24,11 @@ import DonatePage from "./pages/DonatePage";
 import DonationAdminPage from "./pages/DonationAdminPage";
 import TopDonateAdminPage from "./pages/TopDonateAdminPage";
 import SavedReportsPage from "./pages/SavedReportsPage";
+import SavedBlogPostsPage from "./pages/SavedBlogPostsPage";
 import PageSettingsAdminPage from "./pages/PageSettingsAdminPage";
 import ManagedPageResolver from "./pages/ManagedPageResolver";
 import ManagedPageGate from "./components/ManagedPageGate";
+import AuthorBlogPage from "./pages/AuthorBlogPage";
 
 export default function App() {
   return (
@@ -44,8 +46,10 @@ export default function App() {
         <Route path="/bao-cao-ho-tro-gstt" element={<ProtectedRoute><GsttPage /></ProtectedRoute>} />
         <Route path="/blog" element={<ProtectedRoute><ManagedPageGate pageKey="blog"><BlogPage /></ManagedPageGate></ProtectedRoute>} />
         <Route path="/blog/:slug" element={<ProtectedRoute><BlogDetailPage /></ProtectedRoute>} />
+        <Route path="/tac-gia/:authorId" element={<ProtectedRoute><AuthorBlogPage /></ProtectedRoute>} />
         <Route path="/donate" element={<ProtectedRoute><ManagedPageGate pageKey="donate"><DonatePage /></ManagedPageGate></ProtectedRoute>} />
         <Route path="/bao-cao-da-luu" element={<ProtectedRoute><ManagedPageGate pageKey="saved-reports"><SavedReportsPage /></ManagedPageGate></ProtectedRoute>} />
+        <Route path="/bai-viet-da-luu" element={<ProtectedRoute><ManagedPageGate pageKey="saved-posts"><SavedBlogPostsPage /></ManagedPageGate></ProtectedRoute>} />
         <Route path="/cap-nhat-mat-khau" element={<ProtectedRoute><UpdatePasswordPage /></ProtectedRoute>} />
         <Route path="/admin/blog" element={<ProtectedRoute roles={["admin", "superadmin"]}><ManagedPageGate pageKey="blog-admin"><BlogAdminPage /></ManagedPageGate></ProtectedRoute>} />
         <Route path="/admin/categories" element={<ProtectedRoute roles={["admin", "superadmin"]}><ManagedPageGate pageKey="category-admin"><CategoryAdminPage /></ManagedPageGate></ProtectedRoute>} />

@@ -12,12 +12,14 @@ import NotFoundPage from "./NotFoundPage";
 import PageSettingsAdminPage from "./PageSettingsAdminPage";
 import ReportBoxAdminPage from "./ReportBoxAdminPage";
 import SavedReportsPage from "./SavedReportsPage";
+import SavedBlogPostsPage from "./SavedBlogPostsPage";
 import UserAdminPage from "./UserAdminPage";
 
 const COMPONENTS = {
   blog: BlogPage,
   donate: DonatePage,
   "saved-reports": SavedReportsPage,
+  "saved-posts": SavedBlogPostsPage,
   "blog-admin": BlogAdminPage,
   "category-admin": CategoryAdminPage,
   "box-admin": ReportBoxAdminPage,

@@ -80,7 +80,16 @@ Các trang báo cáo hỗ trợ đọc Excel, xử lý dữ liệu theo nghiệp
 - Danh sách bài viết có phân trang và trang chi tiết dùng slug.
 - Slug được gắn thêm chuỗi/số ngẫu nhiên để hạn chế trùng.
 - SuperAdmin/Admin thêm, sửa, xóa, ẩn/hiện và xuất bản bài viết.
-- Hỗ trợ ảnh bìa, ảnh trong nội dung và liên kết video Google Drive.
+- Ảnh bìa không bắt buộc; khi thiếu ảnh hoặc link ImgBB hỏng, hệ thống tự tạo bìa QLCL-DV thay thế.
+- Ảnh bìa dọc, ngang hoặc vuông được tự căn bằng nền mờ và `object-contain`, không kéo méo; các thẻ Blog giữ chiều cao cân đối.
+- Trình soạn bài hỗ trợ tải ảnh vào nội dung và chèn liên kết có thể bấm mở ở tab mới.
+- Người dùng có thể thả tim bài viết, lưu bookmark, bình luận, trả lời và thả reaction/emoji; danh sách tài khoản đã tim hoặc thả cảm xúc có thể xem trực tiếp.
+- Bình luận hiển thị họ tên/vai trò hiện tại, người đang được trả lời và đoạn nội dung bình luận gốc; người viết sửa/xóa bình luận của mình. Admin quản lý bình luận User, SuperAdmin xóa được bình luận Admin/User.
+- Mỗi lần sửa bình luận đều tạo một bản lịch sử bất biến gồm nội dung trước/sau, người sửa và thời gian `dd/MM/yyyy HH:mm:ss`.
+- Tên và avatar của tác giả Admin/SuperAdmin mở trang tác giả `/tac-gia/:authorId`, liệt kê các Blog đã xuất bản, có tìm kiếm, phân trang và trạng thái chưa có bài viết. Tài khoản User không có liên kết tác giả.
+- Tên hiển thị của tác giả, người bình luận, người thả tim/cảm xúc và người sửa bình luận được đồng bộ theo hồ sơ hiện tại thông qua API chỉ trả về `fullName` và `role`.
+- Trang **Bài viết đã lưu** có tìm kiếm, phân trang và lọc theo tài khoản cho quản trị viên. Admin không được truy vấn bookmark của SuperAdmin.
+- Hỗ trợ liên kết video Google Drive.
 - Ảnh được đưa lên ImgBB qua API phía máy chủ.
 - Chuyên mục được lưu trong `blog_categories`; SuperAdmin/Admin được thêm, sửa, xóa.
 
@@ -110,20 +119,25 @@ Không dùng `['']`, vì đó là một phần tử rỗng. Việc sửa mã ngu
 
 ## 3. Phân quyền
 
-| Chức năng                    | User  | Admin | SuperAdmin |
-| ---------------------------- | :---: | :---: | :--------: |
-| Dùng các báo cáo             |  Có   |  Có   |     Có     |
-| Xem Blog và Donate           |  Có   |  Có   |     Có     |
-| Lưu/xem/xóa báo cáo của mình |  Có   |  Có   |     Có     |
-| Xem báo cáo của User         | Không |  Có   |     Có     |
-| Xem báo cáo mọi tài khoản    | Không | Không |     Có     |
-| Quản lý Blog/chuyên mục      | Không |  Có   |     Có     |
-| Quản lý Box báo cáo          | Không |  Có   |     Có     |
-| Quản lý Top Donate           | Không |  Có   |     Có     |
-| Quản lý tài khoản Donate     | Không | Không |     Có     |
-| Tạo/phân quyền User và Admin | Không |  Có   |     Có     |
-| Phân quyền SuperAdmin        | Không | Không |     Có     |
-| Quản lý tên trang và slug    | Không | Không |     Có     |
+| Chức năng | User | Admin | SuperAdmin |
+|---|:---:|:---:|:---:|
+| Dùng các báo cáo | Có | Có | Có |
+| Xem Blog và Donate | Có | Có | Có |
+| Lưu/xem/xóa báo cáo của mình | Có | Có | Có |
+| Xem báo cáo của User | Không | Có | Có |
+| Xem báo cáo mọi tài khoản | Không | Không | Có |
+| Quản lý Blog/chuyên mục | Không | Có | Có |
+| Tim, bình luận và lưu bài viết | Có | Có | Có |
+| Xem/xóa bookmark của User | Không | Có | Có |
+| Xem bookmark của SuperAdmin | Không | Không | Có |
+| Sửa/xóa bình luận User | Không | Có | Có |
+| Xóa bình luận Admin | Không | Không | Có |
+| Quản lý Box báo cáo | Không | Có | Có |
+| Quản lý Top Donate | Không | Có | Có |
+| Quản lý tài khoản Donate | Không | Không | Có |
+| Tạo/phân quyền User và Admin | Không | Có | Có |
+| Phân quyền SuperAdmin | Không | Không | Có |
+| Quản lý tên trang và slug | Không | Không | Có |
 
 - Admin chỉ gán vai trò `User` hoặc `Admin`.
 - SuperAdmin gán được `User`, `Admin` hoặc `SuperAdmin`.
@@ -150,22 +164,27 @@ qlcldv/
 ├── firestore.rules          # Firestore Security Rules
 ├── index.html               # Entry HTML của Vite
 ├── package.json             # Dependency và lệnh npm
-├── vercel.json              # Rewrite SPA cho Vercel
+├── vercel.json              # Ưu tiên file/API rồi fallback SPA
 └── vite.config.js           # Cấu hình Vite
 ```
 
 Các collection Firestore chính:
 
-| Collection          | Mục đích                             |
-| ------------------- | ------------------------------------ |
-| `users`             | Hồ sơ, tên đăng nhập, vai trò        |
-| `report_boxes`      | Cấu hình Box báo cáo                 |
-| `saved_reports`     | Báo cáo đã lưu                       |
-| `blog_posts`        | Bài viết Blog                        |
-| `blog_categories`   | Chuyên mục Blog                      |
-| `donation_accounts` | Tài khoản/QR Donate                  |
-| `top_donates`       | Danh sách Top Donate                 |
-| `site_pages`        | Tên trang, slug, trạng thái hiển thị |
+| Collection | Mục đích |
+|---|---|
+| `users` | Hồ sơ, tên đăng nhập, vai trò |
+| `report_boxes` | Cấu hình Box báo cáo |
+| `saved_reports` | Báo cáo đã lưu |
+| `blog_posts` | Bài viết Blog |
+| `blog_categories` | Chuyên mục Blog |
+| `blog_post_likes` | Lượt tim bài viết |
+| `blog_bookmarks` | Bài viết người dùng đã lưu |
+| `blog_comments` | Bình luận và câu trả lời Blog |
+| `blog_comment_reactions` | Cảm xúc trên từng bình luận |
+| `blog_comment_edits` | Lịch sử chỉnh sửa bình luận |
+| `donation_accounts` | Tài khoản/QR Donate |
+| `top_donates` | Danh sách Top Donate |
+| `site_pages` | Tên trang, slug, trạng thái hiển thị |
 
 ## 5. Chuẩn bị
 
@@ -219,14 +238,14 @@ Nếu `src/main.jsx` không tồn tại thì Vite không thể build.
 
 Ánh xạ:
 
-| Firebase Web config | Biến dự án                          |
-| ------------------- | ----------------------------------- |
-| `apiKey`            | `VITE_FIREBASE_API_KEY`             |
-| `authDomain`        | `VITE_FIREBASE_AUTH_DOMAIN`         |
-| `projectId`         | `VITE_FIREBASE_PROJECT_ID`          |
-| `storageBucket`     | `VITE_FIREBASE_STORAGE_BUCKET`      |
+| Firebase Web config | Biến dự án |
+|---|---|
+| `apiKey` | `VITE_FIREBASE_API_KEY` |
+| `authDomain` | `VITE_FIREBASE_AUTH_DOMAIN` |
+| `projectId` | `VITE_FIREBASE_PROJECT_ID` |
+| `storageBucket` | `VITE_FIREBASE_STORAGE_BUCKET` |
 | `messagingSenderId` | `VITE_FIREBASE_MESSAGING_SENDER_ID` |
-| `appId`             | `VITE_FIREBASE_APP_ID`              |
+| `appId` | `VITE_FIREBASE_APP_ID` |
 
 ### Bước 2 — Bật Email/Password
 
@@ -261,11 +280,11 @@ Firebase Console → **Project settings** → **Service accounts** → **Generat
 
 Lấy đúng ba trường từ JSON:
 
-| Trường JSON    | Biến server             |
-| -------------- | ----------------------- |
-| `project_id`   | `FIREBASE_PROJECT_ID`   |
+| Trường JSON | Biến server |
+|---|---|
+| `project_id` | `FIREBASE_PROJECT_ID` |
 | `client_email` | `FIREBASE_CLIENT_EMAIL` |
-| `private_key`  | `FIREBASE_PRIVATE_KEY`  |
+| `private_key` | `FIREBASE_PRIVATE_KEY` |
 
 Không đưa file JSON hay private key lên GitHub. Nếu khóa từng bị lộ, xóa/revoke khóa cũ và tạo khóa mới.
 
@@ -534,14 +553,14 @@ git push
 
 Quy ước:
 
-| Loại       | Khi dùng         | Ví dụ                                           |
-| ---------- | ---------------- | ----------------------------------------------- |
-| `feat`     | Thêm chức năng   | `feat: add Top Donate management`               |
-| `fix`      | Sửa lỗi          | `fix: include unanswered staff in speed report` |
-| `docs`     | Sửa tài liệu     | `docs: update Firebase setup guide`             |
-| `refactor` | Sắp xếp code     | `refactor: simplify report mapping`             |
-| `style`    | Sửa giao diện    | `style: improve Donate mobile layout`           |
-| `chore`    | Cấu hình/phụ trợ | `chore: update dependencies`                    |
+| Loại | Khi dùng | Ví dụ |
+|---|---|---|
+| `feat` | Thêm chức năng | `feat: add Top Donate management` |
+| `fix` | Sửa lỗi | `fix: include unanswered staff in speed report` |
+| `docs` | Sửa tài liệu | `docs: update Firebase setup guide` |
+| `refactor` | Sắp xếp code | `refactor: simplify report mapping` |
+| `style` | Sửa giao diện | `style: improve Donate mobile layout` |
+| `chore` | Cấu hình/phụ trợ | `chore: update dependencies` |
 
 Một commit nên chứa một nhóm thay đổi liên quan. Tránh nội dung mơ hồ như `update`, `fix`, `abc`, `final final`.
 
@@ -560,32 +579,32 @@ git log --oneline -5
 3. Kết nối GitHub và Import repository `qlcldv`.
 4. Kiểm tra:
 
-| Mục              | Giá trị         |
-| ---------------- | --------------- |
-| Framework Preset | `Vite`          |
-| Root Directory   | `./`            |
-| Install Command  | `npm install`   |
-| Build Command    | `npm run build` |
-| Output Directory | `dist`          |
-| Node.js Version  | `22.x`          |
+| Mục | Giá trị |
+|---|---|
+| Framework Preset | `Vite` |
+| Root Directory | `./` |
+| Install Command | `npm install` |
+| Build Command | `npm run build` |
+| Output Directory | `dist` |
+| Node.js Version | `22.x` |
 
 ### Bước 2 — Environment Variables
 
 Vercel project → **Settings** → **Environment Variables**. Thêm đủ:
 
-| Biến                                | Nguồn                          | Kiểu nên dùng |
-| ----------------------------------- | ------------------------------ | ------------- |
-| `VITE_FIREBASE_API_KEY`             | Web config `apiKey`            | Config        |
-| `VITE_FIREBASE_AUTH_DOMAIN`         | Web config `authDomain`        | Config        |
-| `VITE_FIREBASE_PROJECT_ID`          | Web config `projectId`         | Config        |
-| `VITE_FIREBASE_STORAGE_BUCKET`      | Web config `storageBucket`     | Config        |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Web config `messagingSenderId` | Config        |
-| `VITE_FIREBASE_APP_ID`              | Web config `appId`             | Config        |
-| `FIREBASE_PROJECT_ID`               | Service Account `project_id`   | Secret        |
-| `FIREBASE_CLIENT_EMAIL`             | Service Account `client_email` | Secret        |
-| `FIREBASE_PRIVATE_KEY`              | Service Account `private_key`  | Secret        |
-| `IMGBB_API_KEY`                     | ImgBB                          | Secret        |
-| `SETUP_SECRET`                      | Chuỗi tự tạo >= 24 ký tự       | Secret        |
+| Biến | Nguồn | Kiểu nên dùng |
+|---|---|---|
+| `VITE_FIREBASE_API_KEY` | Web config `apiKey` | Config |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Web config `authDomain` | Config |
+| `VITE_FIREBASE_PROJECT_ID` | Web config `projectId` | Config |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Web config `storageBucket` | Config |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Web config `messagingSenderId` | Config |
+| `VITE_FIREBASE_APP_ID` | Web config `appId` | Config |
+| `FIREBASE_PROJECT_ID` | Service Account `project_id` | Secret |
+| `FIREBASE_CLIENT_EMAIL` | Service Account `client_email` | Secret |
+| `FIREBASE_PRIVATE_KEY` | Service Account `private_key` | Secret |
+| `IMGBB_API_KEY` | ImgBB | Secret |
+| `SETUP_SECRET` | Chuỗi tự tạo >= 24 ký tự | Secret |
 
 Chọn cả `Production`, `Preview`, `Development` nếu dùng chung Firebase. Có thể tách riêng Production về sau.
 
@@ -614,11 +633,14 @@ Giữ đúng tên `vercel.json` ở thư mục gốc:
 ```json
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
 }
 ```
 
-Rewrite giúp React Router mở trực tiếp `/donate`, `/blog/...`, `/quan-ly-user` mà không 404.
+`filesystem` cho phép Vite tải đúng `/src/main.jsx`, asset và API thật trước. Rule cuối chỉ đưa các URL trang React như `/donate`, `/blog/...`, `/quan-ly-user` về `index.html`, tránh lỗi 404 khi mở trực tiếp.
 
 Không dùng `vercel.deploy.json` làm cấu hình production vì Vercel tự đọc `vercel.json`. Nếu file test không còn dùng, có thể bỏ sau khi xác nhận `vercel.json` đúng.
 
@@ -747,7 +769,7 @@ Frontend đang đọc JSON nhưng API trả body rỗng do Function crash. Xem T
 
 ### Route Vercel bị 404
 
-Kiểm tra file tên đúng `vercel.json`, nằm ở gốc và có rewrite SPA. Commit, push và redeploy.
+Kiểm tra file tên đúng `vercel.json`, nằm ở gốc, có `handle: "filesystem"` trước rule fallback SPA. Commit, push và redeploy.
 
 ### `auth/unauthorized-domain`
 

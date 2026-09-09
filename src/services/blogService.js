@@ -13,6 +13,7 @@ import {
 import { authenticatedApi } from "../lib/authenticatedApi";
 import { firestore } from "../lib/firebaseClient";
 import { fileToBase64 } from "../utils/media";
+import { getPublicProfiles } from "./publicProfileService";
 
 function toIso(value) {
   if (!value) return "";
@@ -32,6 +33,7 @@ export function mapBlogPost(snapshot) {
     tags: Array.isArray(row.tags) ? row.tags : [],
     author: row.author || "QLCL-DV",
     authorId: row.createdBy || null,
+    authorRole: row.authorRole || "",
     status: row.status || "draft",
     featured: Boolean(row.featured),
     coverUrl: row.coverUrl || "",
@@ -70,21 +72,37 @@ function sortPosts(posts) {
   return posts.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
 }
 
+async function hydrateBlogAuthors(posts) {
+  const list = Array.isArray(posts) ? posts : [posts];
+  const authorIds = list.map(post => post?.authorId).filter(Boolean);
+  if (!authorIds.length) return posts;
+  try {
+    const profiles = await getPublicProfiles(authorIds);
+    const hydrated = list.map(post => {
+      const profile = profiles.get(post.authorId);
+      return profile ? { ...post, author: profile.fullName, authorRole: profile.role } : post;
+    });
+    return Array.isArray(posts) ? hydrated : hydrated[0];
+  } catch {
+    return posts;
+  }
+}
+
 export async function getPublicBlogPosts() {
   const snapshots = await getDocs(query(collection(firestore, "blog_posts"), where("status", "==", "published")));
-  return sortPosts(snapshots.docs.map(mapBlogPost));
+  return sortPosts(await hydrateBlogAuthors(snapshots.docs.map(mapBlogPost)));
 }
 
 export async function getAllBlogPosts() {
   const snapshots = await getDocs(collection(firestore, "blog_posts"));
-  return sortPosts(snapshots.docs.map(mapBlogPost));
+  return sortPosts(await hydrateBlogAuthors(snapshots.docs.map(mapBlogPost)));
 }
 
 export async function getBlogPostBySlug(slug, canManage = false) {
   const conditions = [where("slug", "==", slug)];
   if (!canManage) conditions.push(where("status", "==", "published"));
   const snapshots = await getDocs(query(collection(firestore, "blog_posts"), ...conditions));
-  return snapshots.empty ? null : mapBlogPost(snapshots.docs[0]);
+  return snapshots.empty ? null : hydrateBlogAuthors(mapBlogPost(snapshots.docs[0]));
 }
 
 export async function createBlogPost(post, userId) {

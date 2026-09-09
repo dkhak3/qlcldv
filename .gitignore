@@ -8,3 +8,4 @@ dist
 .DS_Store
 *serviceAccount*.json
 firebase-adminsdk-*.json
+.vercel

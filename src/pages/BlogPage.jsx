@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { ArrowRight, BookOpenText, Database, LoaderCircle, Search, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import BlogCover from "../components/BlogCover";
+import BlogAuthorLink from "../components/BlogAuthorLink";
 import BlogPostCard from "../components/BlogPostCard";
 import NoData from "../components/NoData";
 import Pagination, { pageItems } from "../components/Pagination";
@@ -53,8 +54,8 @@ export default function BlogPage() {
 
     {loading ? <div className="mt-8 flex min-h-80 flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white text-slate-500 dark:border-slate-800 dark:bg-slate-900"><LoaderCircle className="animate-spin text-brand-500" size={34}/><span className="mt-4 text-sm font-semibold">Đang tải bài viết...</span></div> : <>
       {featured && <article className="mt-8 grid overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-card dark:border-slate-800 dark:bg-slate-900 lg:grid-cols-[1.05fr_.95fr]">
-        <BlogCover post={featured} className="min-h-72 lg:min-h-[360px]" />
-        <div className="flex flex-col justify-center p-6 sm:p-9"><span className="text-xs font-bold uppercase tracking-[.18em] text-brand-600 dark:text-orange-300">Bài viết nổi bật</span><h2 className="mt-3 text-2xl font-bold leading-tight tracking-tight text-ink dark:text-white sm:text-3xl">{featured.title}</h2><p className="mt-4 text-sm leading-7 text-slate-500 dark:text-slate-400">{featured.excerpt}</p><div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-400"><span>{formatBlogDate(featured.createdAt)}</span><span>•</span><span>{featured.readTime} phút đọc</span><span>•</span><span>{featured.author}</span></div><Link className="primary-button mt-7 w-fit" to={`/blog/${featured.slug}`}>Đọc ngay <ArrowRight size={18}/></Link></div>
+        <BlogCover post={featured} className="aspect-[16/9] w-full lg:aspect-auto lg:min-h-[360px]" />
+        <div className="flex flex-col justify-center p-6 sm:p-9"><span className="text-xs font-bold uppercase tracking-[.18em] text-brand-600 dark:text-orange-300">Bài viết nổi bật</span><h2 className="mt-3 text-2xl font-bold leading-tight tracking-tight text-ink dark:text-white sm:text-3xl">{featured.title}</h2><p className="mt-4 text-sm leading-7 text-slate-500 dark:text-slate-400">{featured.excerpt}</p><div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-400"><span>{formatBlogDate(featured.createdAt)}</span><span>•</span><span>{featured.readTime} phút đọc</span><span>•</span><BlogAuthorLink post={featured} className="font-semibold">{featured.author}</BlogAuthorLink></div><Link className="primary-button mt-7 w-fit" to={`/blog/${featured.slug}`}>Đọc ngay <ArrowRight size={18}/></Link></div>
       </article>}
 
       <div className="mt-12 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
@@ -62,7 +63,7 @@ export default function BlogPage() {
         <label className="relative block w-full lg:max-w-sm"><Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/><input className="field-input !pl-11" value={query} onChange={event => setQuery(event.target.value)} placeholder="Tìm bài viết, chủ đề..."/></label>
       </div>
       <div className="mt-5 flex gap-2 overflow-x-auto pb-2">{categories.map(item => <button key={item} type="button" onClick={() => setCategory(item)} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition ${category === item ? "border-brand-500 bg-brand-500 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-orange-200 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"}`}>{item}</button>)}</div>
-      <div className="mt-6">{filteredPosts.length ? <><div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{paged.items.map(post => <BlogPostCard key={post.id} post={post}/>)}</div><div className="mt-7 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><Pagination page={paged.safePage} pageCount={paged.pageCount} onChange={setPage}/></div></> : <NoData searched title="Không tìm thấy bài viết" description="Thử đổi từ khóa hoặc chọn một chuyên mục khác."/>}</div>
+      <div className="mt-6">{filteredPosts.length ? <><div className="grid auto-rows-fr gap-5 sm:grid-cols-2 xl:grid-cols-3">{paged.items.map(post => <BlogPostCard key={post.id} post={post}/>)}</div><div className="mt-7 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><Pagination page={paged.safePage} pageCount={paged.pageCount} onChange={setPage}/></div></> : <NoData searched title="Không tìm thấy bài viết" description="Thử đổi từ khóa hoặc chọn một chuyên mục khác."/>}</div>
     </>}
   </section>;
 }
