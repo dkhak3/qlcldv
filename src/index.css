@@ -23,6 +23,7 @@
   .report-input-violet, .report-file-violet { --report-input-rgb: 124 58 237; }
   .report-input-cyan, .report-file-cyan { --report-input-rgb: 8 145 178; }
   .report-input-emerald, .report-file-emerald { --report-input-rgb: 5 150 105; }
+  .report-input-indigo, .report-file-indigo { --report-input-rgb: 79 70 229; }
   .report-input:hover,
   .report-input:focus {
     border-color: rgb(var(--report-input-rgb));
