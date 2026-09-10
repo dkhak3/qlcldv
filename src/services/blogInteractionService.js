@@ -12,6 +12,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { firestore } from "../lib/firebaseClient";
+import { authenticatedApi } from "../lib/authenticatedApi";
 import { getPublicProfiles } from "./publicProfileService";
 
 const POST_LIKES = "blog_post_likes";
@@ -299,7 +300,10 @@ export async function updateBlogComment(id, content, auth) {
 }
 
 export async function deleteBlogComment(id) {
-  await deleteDoc(doc(firestore, COMMENTS, id));
+  return authenticatedApi("/api/manage-blog-data", {
+    action: "delete-comment",
+    payload: { id },
+  });
 }
 
 export async function setBlogCommentReaction({ postId, commentId, reaction }, auth) {

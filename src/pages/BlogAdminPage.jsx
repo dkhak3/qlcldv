@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { BookOpenText, CalendarDays, Check, ChevronDown, Database, Edit3, Eye, FileText, Image as ImageIcon, LoaderCircle, Plus, Search, ShieldCheck, Trash2, UploadCloud, Video, X } from "lucide-react";
+import { BookOpenText, CalendarDays, Check, ChevronDown, Database, DatabaseZap, Edit3, Eye, FileText, Image as ImageIcon, LoaderCircle, Plus, Search, ShieldCheck, Trash2, UploadCloud, Video, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "../AuthContext";
@@ -8,7 +8,7 @@ import BlogContentEditor from "../components/BlogContentEditor";
 import BlogCover from "../components/BlogCover";
 import Pagination, { pageItems } from "../components/Pagination";
 import { getBlogCategories } from "../services/blogCategoryService";
-import { createBlogPost, deleteBlogPostRecord, getAllBlogPosts, updateBlogPostRecord, uploadBlogImage } from "../services/blogService";
+import { cleanupDeletedBlogData, createBlogPost, deleteBlogPostRecord, getAllBlogPosts, updateBlogPostRecord, uploadBlogImage } from "../services/blogService";
 import { addBlogPost, deleteBlogPost, setBlogError, setBlogLoading, setBlogPosts, updateBlogPost } from "../store";
 import { calculateReadTime, createRandomBlogSlug, formatBlogDate, slugifyBlogTitle } from "../utils/blog";
 import { isGoogleDriveUrl } from "../utils/media";
@@ -93,6 +93,7 @@ export default function BlogAdminPage() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
   const [categories, setCategories] = useState([]);
   const [page, setPage] = useState(1);
 
@@ -134,13 +135,23 @@ export default function BlogAdminPage() {
       await deleteBlogPostRecord(deleteTarget.id);
       dispatch(deleteBlogPost(deleteTarget.id));
       setDeleteTarget(null);
-      toast.success("Đã xóa bài viết khỏi database");
+      toast.success("Đã xóa vĩnh viễn bài viết và toàn bộ dữ liệu liên quan");
     } catch (deleteError) { toast.error(deleteError.message || "Không thể xóa bài viết"); }
     finally { setDeleting(false); }
   };
 
+  const cleanup = async () => {
+    setCleaning(true);
+    try {
+      const result = await cleanupDeletedBlogData();
+      toast.success(result.deleted ? `Đã xóa ${result.deleted} dữ liệu mồ côi khỏi database` : "Database không còn dữ liệu mồ côi");
+    } catch (cleanupError) {
+      toast.error(cleanupError.message || "Không thể dọn dữ liệu Blog đã xóa");
+    } finally { setCleaning(false); }
+  };
+
   return <section className="mx-auto max-w-7xl px-4 py-9 sm:px-6 sm:py-12 lg:px-8">
-    <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end"><div><Link to={pageSettings.pathFor("blog")} className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-brand-600 dark:text-slate-400 dark:hover:text-orange-300"><BookOpenText size={17}/>Xem trang Blog</Link><h1 className="mt-4 text-3xl font-bold tracking-tight text-ink dark:text-white sm:text-4xl">Quản lý Blog</h1><p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">Thêm bài viết có ảnh, video và xuất bản cho người dùng.</p></div><div className="flex flex-wrap gap-3"><Link className="secondary-button" to={pageSettings.pathFor("category-admin")}>Quản lý chuyên mục</Link><button className="primary-button" onClick={() => { setEditor(null); setEditorOpen(true); }}><Plus size={18}/>Thêm bài viết</button></div></div>
+    <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end"><div><Link to={pageSettings.pathFor("blog")} className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-brand-600 dark:text-slate-400 dark:hover:text-orange-300"><BookOpenText size={17}/>Xem trang Blog</Link><h1 className="mt-4 text-3xl font-bold tracking-tight text-ink dark:text-white sm:text-4xl">Quản lý Blog</h1><p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">Thêm bài viết có ảnh, video và xuất bản cho người dùng.</p></div><div className="flex flex-wrap gap-3"><button type="button" className="secondary-button" disabled={cleaning} onClick={cleanup}>{cleaning ? <LoaderCircle className="animate-spin" size={17}/> : <DatabaseZap size={17}/>}Dọn dữ liệu đã xóa</button><Link className="secondary-button" to={pageSettings.pathFor("category-admin")}>Quản lý chuyên mục</Link><button className="primary-button" onClick={() => { setEditor(null); setEditorOpen(true); }}><Plus size={18}/>Thêm bài viết</button></div></div>
     <div className="mt-7 flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300"><Database className="mt-0.5 shrink-0" size={19}/><p><b>Đã kết nối Firebase.</b> Bạn đang đăng nhập với quyền {roleNames[auth.role]}. Bài viết lưu ở Firestore; ảnh được tải lên ImgBB.</p></div>
     {error && <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">{error}</div>}
 

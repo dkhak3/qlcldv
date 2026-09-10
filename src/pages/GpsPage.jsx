@@ -93,10 +93,10 @@ export default function GpsPage() {
         </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <label><span className="field-label"><CalendarDays size={17}/> Từ ngày</span><input className="field-input" type="date" value={form.startDate} onChange={event => dispatch(setGpsStartDate(event.target.value))}/></label>
-          <label><span className="field-label"><CalendarDays size={17}/> Đến ngày</span><input className="field-input" type="date" min={form.startDate} value={form.endDate} onChange={event => dispatch(setGpsEndDate(event.target.value))}/></label>
+          <label><span className="field-label"><CalendarDays size={17}/> Từ ngày</span><input className="field-input report-input report-input-blue" type="date" value={form.startDate} onChange={event => dispatch(setGpsStartDate(event.target.value))}/></label>
+          <label><span className="field-label"><CalendarDays size={17}/> Đến ngày</span><input className="field-input report-input report-input-blue" type="date" min={form.startDate} value={form.endDate} onChange={event => dispatch(setGpsEndDate(event.target.value))}/></label>
         </div>
-        <label className="mt-5 block"><span className="field-label"><UserRound size={17}/> Tên nhân viên QLCL-DV</span><input className="field-input" type="text" placeholder="Ví dụ: Bùi Nguyễn Phúc An, Nguyễn Minh Huy" value={form.employees} onChange={event => dispatch(setGpsEmployees(event.target.value))}/></label>
+        <label className="mt-5 block"><span className="field-label"><UserRound size={17}/> Tên nhân viên QLCL-DV</span><input className="field-input report-input report-input-blue" type="text" placeholder="Ví dụ: Bùi Nguyễn Phúc An, Nguyễn Minh Huy" value={form.employees} onChange={event => dispatch(setGpsEmployees(event.target.value))}/></label>
         <div className="mt-6 grid gap-3 sm:grid-cols-2"><button className="primary-button" disabled={!valid || loading} onClick={search}>{loading ? <LoaderCircle className="animate-spin" size={18}/> : <Search size={18}/>} {loading ? "Đang xử lý..." : "Search"}</button><button className="secondary-button" disabled={!hasData || loading} onClick={download}><Download size={18}/>Tải báo cáo</button><button className="secondary-button" disabled={!hasData || loading} onClick={() => navigate("/bao-cao-gps/chi-tiet")}><Eye size={18}/>Xem chi tiết các xe</button><SaveReportButton type="gps" title="báo cáo GPS" form={form} disabled={!hasData || loading}/></div>
       </div>
     </div>

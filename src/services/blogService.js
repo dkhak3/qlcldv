@@ -1,7 +1,6 @@
 import {
   addDoc,
   collection,
-  deleteDoc,
   doc,
   getDocs,
   increment,
@@ -117,7 +116,14 @@ export async function updateBlogPostRecord(post) {
 }
 
 export async function deleteBlogPostRecord(id) {
-  await deleteDoc(doc(firestore, "blog_posts", id));
+  return authenticatedApi("/api/manage-blog-data", {
+    action: "delete-post",
+    payload: { id },
+  });
+}
+
+export async function cleanupDeletedBlogData() {
+  return authenticatedApi("/api/manage-blog-data", { action: "cleanup-orphans" });
 }
 
 export async function uploadBlogImage(file) {

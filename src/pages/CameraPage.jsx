@@ -93,10 +93,10 @@ export default function CameraPage() {
         </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <label><span className="field-label"><CalendarDays size={17}/> Từ ngày</span><input className="field-input" type="date" value={form.startDate} onChange={event => dispatch(setStartDate(event.target.value))}/></label>
-          <label><span className="field-label"><CalendarDays size={17}/> Đến ngày</span><input className="field-input" type="date" min={form.startDate} value={form.endDate} onChange={event => dispatch(setEndDate(event.target.value))}/></label>
+          <label><span className="field-label"><CalendarDays size={17}/> Từ ngày</span><input className="field-input report-input report-input-orange" type="date" value={form.startDate} onChange={event => dispatch(setStartDate(event.target.value))}/></label>
+          <label><span className="field-label"><CalendarDays size={17}/> Đến ngày</span><input className="field-input report-input report-input-orange" type="date" min={form.startDate} value={form.endDate} onChange={event => dispatch(setEndDate(event.target.value))}/></label>
         </div>
-        <label className="mt-5 block"><span className="field-label"><UserRound size={17}/> Tên nhân viên QLCL-DV</span><input className="field-input" type="text" placeholder="Ví dụ: Xin Thăng Kiệt, Nguyễn Quốc Cung" value={form.employees} onChange={event => dispatch(setEmployees(event.target.value))}/></label>
+        <label className="mt-5 block"><span className="field-label"><UserRound size={17}/> Tên nhân viên QLCL-DV</span><input className="field-input report-input report-input-orange" type="text" placeholder="Ví dụ: Xin Thăng Kiệt, Nguyễn Quốc Cung" value={form.employees} onChange={event => dispatch(setEmployees(event.target.value))}/></label>
         <div className="mt-6 grid gap-3 sm:grid-cols-2"><button className="primary-button" disabled={!valid || loading} onClick={search}>{loading ? <LoaderCircle className="animate-spin" size={18}/> : <Search size={18}/>} {loading ? "Đang xử lý..." : "Search"}</button><button className="secondary-button" disabled={!hasData || loading} onClick={download}><Download size={18}/>Tải báo cáo</button><button className="secondary-button" disabled={!hasData || loading} onClick={() => navigate("/bao-cao-camera/chi-tiet")}><Eye size={18}/>Xem chi tiết các xe</button><SaveReportButton type="camera" title="báo cáo Camera" form={form} disabled={!hasData || loading}/></div>
       </div>
     </div>

@@ -26,7 +26,9 @@ service cloud.firestore {
 
       match /blog_posts/{postId} {
         allow read: if signedIn() && (resource.data.status == 'published' || isEditor());
-      allow create, delete: if isEditor();
+      allow create: if isEditor();
+      // Xóa bài viết phải đi qua API quản trị để xóa dây chuyền dữ liệu liên quan.
+      allow delete: if false;
       allow update: if isEditor()
         || (
             signedIn()
@@ -55,7 +57,8 @@ service cloud.firestore {
         allow read: if signedIn();
         allow create: if signedIn()
           && request.resource.data.ownerId == request.auth.uid
-          && request.resource.data.ownerRole == request.auth.token.role;
+          && request.resource.data.ownerRole == request.auth.token.role
+          && exists(/databases/$(database)/documents/blog_posts/$(request.resource.data.postId));
         allow delete: if signedIn() && resource.data.ownerId == request.auth.uid;
         allow update: if false;
       }
@@ -63,7 +66,8 @@ service cloud.firestore {
       match /blog_bookmarks/{bookmarkId} {
         allow create: if signedIn()
           && request.resource.data.ownerId == request.auth.uid
-          && request.resource.data.ownerRole == request.auth.token.role;
+          && request.resource.data.ownerRole == request.auth.token.role
+          && exists(/databases/$(database)/documents/blog_posts/$(request.resource.data.postId));
         allow read: if signedIn() && (
           resource.data.ownerId == request.auth.uid
           || isSuperAdmin()
@@ -81,7 +85,8 @@ service cloud.firestore {
         allow read: if signedIn();
         allow create: if signedIn()
           && request.resource.data.ownerId == request.auth.uid
-          && request.resource.data.ownerRole == request.auth.token.role;
+          && request.resource.data.ownerRole == request.auth.token.role
+          && exists(/databases/$(database)/documents/blog_posts/$(request.resource.data.postId));
         allow update: if signedIn()
           && canEditComment(resource.data)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'updatedAt', 'lastEditId'])
@@ -92,11 +97,8 @@ service cloud.firestore {
           && getAfter(/databases/$(database)/documents/blog_comment_edits/$(request.resource.data.lastEditId)).data.beforeContent == resource.data.content
           && getAfter(/databases/$(database)/documents/blog_comment_edits/$(request.resource.data.lastEditId)).data.afterContent == request.resource.data.content
           && getAfter(/databases/$(database)/documents/blog_comment_edits/$(request.resource.data.lastEditId)).data.editorId == request.auth.uid;
-        allow delete: if signedIn() && (
-          resource.data.ownerId == request.auth.uid
-          || (isAdmin() && resource.data.ownerRole == 'user')
-          || (isSuperAdmin() && (resource.data.ownerRole == 'user' || resource.data.ownerRole == 'admin'))
-        );
+        // Xóa bình luận phải đi qua API quản trị để xóa cả lịch sử và cảm xúc.
+        allow delete: if false;
       }
 
       match /blog_comment_edits/{editId} {
@@ -119,12 +121,16 @@ service cloud.firestore {
         allow read: if signedIn();
         allow create: if signedIn()
           && request.resource.data.ownerId == request.auth.uid
-          && request.resource.data.ownerRole == request.auth.token.role;
+          && request.resource.data.ownerRole == request.auth.token.role
+          && exists(/databases/$(database)/documents/blog_posts/$(request.resource.data.postId))
+          && exists(/databases/$(database)/documents/blog_comments/$(request.resource.data.commentId));
         allow update: if signedIn()
           && resource.data.ownerId == request.auth.uid
           && request.resource.data.ownerId == resource.data.ownerId
           && request.resource.data.commentId == resource.data.commentId
-          && request.resource.data.postId == resource.data.postId;
+          && request.resource.data.postId == resource.data.postId
+          && exists(/databases/$(database)/documents/blog_posts/$(request.resource.data.postId))
+          && exists(/databases/$(database)/documents/blog_comments/$(request.resource.data.commentId));
         allow delete: if signedIn() && resource.data.ownerId == request.auth.uid;
       }
 

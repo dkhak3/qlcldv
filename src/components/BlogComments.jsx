@@ -86,6 +86,32 @@ function CommentComposer({ placeholder, submitLabel, busy, onSubmit, onCancel })
   </form>;
 }
 
+function CommentEditor({ value, busy, onChange, onCancel, onSave }) {
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const emojiRef = useRef(null);
+
+  useEffect(() => {
+    if (!emojiOpen) return undefined;
+    const closeOutside = event => {
+      if (!emojiRef.current?.contains(event.target)) setEmojiOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [emojiOpen]);
+
+  return <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-950/40">
+    <textarea autoFocus className="field-input !h-28 !py-3" maxLength={1200} value={value} onChange={event => onChange(event.target.value)}/>
+    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+      <div ref={emojiRef} className="relative flex items-center gap-2">
+        <button type="button" title="Chèn biểu tượng" onClick={() => setEmojiOpen(open => !open)} className="secondary-button !h-9 !px-3"><SmilePlus size={16}/></button>
+        <span className="text-[11px] text-slate-400">{value.length}/1200</span>
+        {emojiOpen && <div className="absolute bottom-12 left-0 z-30"><EmojiPicker onPick={emoji => { onChange(`${value}${emoji}`); setEmojiOpen(false); }}/></div>}
+      </div>
+      <div className="flex gap-2"><button type="button" onClick={onCancel} className="secondary-button !h-9"><X size={15}/>Hủy</button><button type="button" onClick={onSave} disabled={busy} className="primary-button !h-9">{busy && <LoaderCircle className="animate-spin" size={15}/>}Lưu sửa</button></div>
+    </div>
+  </div>;
+}
+
 function CommentHistory({ comment }) {
   if (!comment.editHistory?.length) return null;
   return <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/60 p-4 dark:border-blue-900/60 dark:bg-blue-950/25">
@@ -199,7 +225,7 @@ export default function BlogComments({ postId }) {
       await deleteBlogComment(deleteTarget.id);
       await load();
       setDeleteTarget(null);
-      toast.success("Đã xóa bình luận");
+      toast.success("Đã xóa vĩnh viễn bình luận, lịch sử sửa và cảm xúc liên quan");
     } catch (error) {
       toast.error(error.message || "Không thể xóa bình luận");
     } finally {
@@ -245,7 +271,7 @@ export default function BlogComments({ postId }) {
         {replyName && <div className="mt-3 rounded-xl border-l-4 border-orange-300 bg-slate-50 px-3 py-2.5 text-[11px] text-slate-500 dark:border-orange-700 dark:bg-slate-800/70 dark:text-slate-300"><div className="flex flex-wrap items-center gap-1.5"><Reply size={13}/>Đã trả lời <b className="text-slate-700 dark:text-white">{replyName}</b>{replyRole && <RoleBadge role={replyRole}/>}</div>{replyContent && <p className="mt-1.5 line-clamp-2 whitespace-pre-wrap break-words border-t border-slate-200/70 pt-1.5 italic leading-5 text-slate-500 dark:border-slate-700 dark:text-slate-400">“{replyContent}”</p>}</div>}
 
         {editing === comment.id
-          ? <div className="mt-4"><textarea className="field-input !h-28 !py-3" maxLength={1200} value={editContent} onChange={event => setEditContent(event.target.value)}/><div className="mt-2 flex justify-end gap-2"><button type="button" onClick={() => setEditing(null)} className="secondary-button !h-9">Hủy</button><button type="button" onClick={() => saveEdit(comment)} disabled={busy} className="primary-button !h-9">{busy && <LoaderCircle className="animate-spin" size={15}/>}Lưu sửa</button></div></div>
+          ? <CommentEditor value={editContent} busy={busy} onChange={setEditContent} onCancel={() => setEditing(null)} onSave={() => saveEdit(comment)}/>
           : <CommentText content={comment.content}/>}
 
         {historyOpen === comment.id && <CommentHistory comment={comment}/>} 

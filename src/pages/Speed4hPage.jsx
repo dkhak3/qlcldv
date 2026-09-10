@@ -128,10 +128,10 @@ export default function Speed4hPage() {
         </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <label><span className="field-label"><CalendarDays size={17}/> Từ ngày</span><input className="field-input" type="date" value={form.startDate} onChange={event => dispatch(setSpeed4hStartDate(event.target.value))}/></label>
-          <label><span className="field-label"><CalendarDays size={17}/> Đến ngày</span><input className="field-input" type="date" min={form.startDate} value={form.endDate} onChange={event => dispatch(setSpeed4hEndDate(event.target.value))}/></label>
+          <label><span className="field-label"><CalendarDays size={17}/> Từ ngày</span><input className="field-input report-input report-input-violet" type="date" value={form.startDate} onChange={event => dispatch(setSpeed4hStartDate(event.target.value))}/></label>
+          <label><span className="field-label"><CalendarDays size={17}/> Đến ngày</span><input className="field-input report-input report-input-violet" type="date" min={form.startDate} value={form.endDate} onChange={event => dispatch(setSpeed4hEndDate(event.target.value))}/></label>
         </div>
-        <label className="mt-5 block"><span className="field-label"><UserRound size={17}/> Tên nhân viên QLCL-DV</span><input className="field-input" type="text" placeholder="Ví dụ: Võ Văn Khải, Đỗ Văn Bình" value={form.employees} onChange={event => dispatch(setSpeed4hEmployees(event.target.value))}/></label>
+        <label className="mt-5 block"><span className="field-label"><UserRound size={17}/> Tên nhân viên QLCL-DV</span><input className="field-input report-input report-input-violet" type="text" placeholder="Ví dụ: Võ Văn Khải, Đỗ Văn Bình" value={form.employees} onChange={event => dispatch(setSpeed4hEmployees(event.target.value))}/></label>
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           <button className="primary-button !bg-violet-600 !shadow-violet-200 hover:!bg-violet-700 dark:!bg-violet-900 dark:!shadow-none dark:hover:!bg-violet-800" disabled={!valid || loading} onClick={search}>{loading ? <LoaderCircle className="animate-spin" size={18}/> : <Search size={18}/>} {loading ? "Đang xử lý..." : "Search"}</button>
           <button className="secondary-button" disabled={!hasData || loading} onClick={download}><Download size={18}/>Tải báo cáo</button>
