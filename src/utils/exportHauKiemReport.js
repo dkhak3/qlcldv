@@ -14,14 +14,14 @@ const SUMMARY_DATA_START_ROW = 7;
 const SUMMARY_TOTAL_ROW = 8;
 const SUMMARY_FOOTER_START_ROW = 9;
 const SUMMARY_TEMPLATE_LAST_ROW = 17;
-const DETAIL_TEMPLATE_ROWS = 77;
 
-const escapeXml = value => String(value ?? "")
-  .replace(/&/g, "&amp;")
-  .replace(/</g, "&lt;")
-  .replace(/>/g, "&gt;")
-  .replace(/"/g, "&quot;")
-  .replace(/'/g, "&apos;");
+const escapeXml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 
 function reportHeaderXml(startDate, endDate) {
   const period = `(Từ ngày ${formatDateVi(startDate)} đến ngày ${formatDateVi(endDate)})`;
@@ -33,12 +33,15 @@ function rowNumberOf(rowXml) {
 }
 
 function extractRows(sheetXml) {
-  const sheetData = sheetXml.match(/<sheetData>([\s\S]*?)<\/sheetData>/)?.[1] || "";
-  return [...sheetData.matchAll(/<row\b[^>]*>[\s\S]*?<\/row>/g)].map(match => match[0]);
+  const sheetData =
+    sheetXml.match(/<sheetData>([\s\S]*?)<\/sheetData>/)?.[1] || "";
+  return [...sheetData.matchAll(/<row\b[^>]*>[\s\S]*?<\/row>/g)].map(
+    (match) => match[0],
+  );
 }
 
 function getRow(rows, number) {
-  const row = rows.find(item => rowNumberOf(item) === number);
+  const row = rows.find((item) => rowNumberOf(item) === number);
   if (!row) throw new Error(`File mẫu thiếu dòng ${number}`);
   return row;
 }
@@ -49,27 +52,35 @@ function cellXml(address, attributes, value) {
     .replace(/\s+t="[^"]*"/, "")
     .replace(/\s*\/\s*$/, "");
   const prefix = `<c r="${address}"${cleanAttributes}>`;
-  if (value == null || value === "") return `<c r="${address}"${cleanAttributes}/>`;
-  if (value?.kind === "rich") return `<c r="${address}"${cleanAttributes} t="inlineStr">${value.xml}</c>`;
-  if (value?.kind === "formula") return `${prefix}<f>${escapeXml(value.formula)}</f><v>${Number(value.result) || 0}</v></c>`;
-  if (typeof value === "number" && Number.isFinite(value)) return `${prefix}<v>${value}</v></c>`;
+  if (value == null || value === "")
+    return `<c r="${address}"${cleanAttributes}/>`;
+  if (value?.kind === "rich")
+    return `<c r="${address}"${cleanAttributes} t="inlineStr">${value.xml}</c>`;
+  if (value?.kind === "formula")
+    return `${prefix}<f>${escapeXml(value.formula)}</f><v>${Number(value.result) || 0}</v></c>`;
+  if (typeof value === "number" && Number.isFinite(value))
+    return `${prefix}<v>${value}</v></c>`;
   return `<c r="${address}"${cleanAttributes} t="inlineStr"><is><t xml:space="preserve">${escapeXml(value)}</t></is></c>`;
 }
 
 function rewriteRow(rowXml, newRowNumber, values = {}) {
   const opening = rowXml.match(/<row\b[^>]*>/)?.[0];
   if (!opening) throw new Error("Dòng trong file mẫu không hợp lệ");
-  const rowAttributes = opening
-    .slice(4, -1)
-    .replace(/\s+r="\d+"/, "");
+  const rowAttributes = opening.slice(4, -1).replace(/\s+r="\d+"/, "");
   const cells = [...rowXml.matchAll(/<c\b[^>]*\/>|<c\b[^>]*>[\s\S]*?<\/c>/g)]
-    .map(match => {
+    .map((match) => {
       const fullCell = match[0];
       const openingCell = fullCell.match(/<c\b([^>]*)/)?.[1] || "";
       const column = openingCell.match(/\br="([A-Z]+)\d+"/)?.[1];
       if (!column) return "";
       const address = `${column}${newRowNumber}`;
-      return cellXml(address, openingCell, Object.prototype.hasOwnProperty.call(values, column) ? values[column] : null);
+      return cellXml(
+        address,
+        openingCell,
+        Object.prototype.hasOwnProperty.call(values, column)
+          ? values[column]
+          : null,
+      );
     })
     .join("");
   return `<row r="${newRowNumber}"${rowAttributes}>${cells}</row>`;
@@ -78,16 +89,28 @@ function rewriteRow(rowXml, newRowNumber, values = {}) {
 function shiftExistingRow(rowXml, newRowNumber) {
   const oldRowNumber = rowNumberOf(rowXml);
   return rowXml
-    .replace(new RegExp(`(<row\\b[^>]*\\br=")${oldRowNumber}("[^>]*>)`), `$1${newRowNumber}$2`)
-    .replace(new RegExp(`(\\br="[A-Z]+)${oldRowNumber}(?=")`, "g"), `$1${newRowNumber}`);
+    .replace(
+      new RegExp(`(<row\\b[^>]*\\br=")${oldRowNumber}("[^>]*>)`),
+      `$1${newRowNumber}$2`,
+    )
+    .replace(
+      new RegExp(`(\\br="[A-Z]+)${oldRowNumber}(?=")`, "g"),
+      `$1${newRowNumber}`,
+    );
 }
 
 function replaceSheetRows(sheetXml, rows) {
-  return sheetXml.replace(/<sheetData>[\s\S]*?<\/sheetData>/, `<sheetData>${rows.join("")}</sheetData>`);
+  return sheetXml.replace(
+    /<sheetData>[\s\S]*?<\/sheetData>/,
+    `<sheetData>${rows.join("")}</sheetData>`,
+  );
 }
 
 function replaceDimension(sheetXml, reference) {
-  return sheetXml.replace(/<dimension\b[^>]*\bref="[^"]*"\s*\/>/, `<dimension ref="${reference}"/>`);
+  return sheetXml.replace(
+    /<dimension\b[^>]*\bref="[^"]*"\s*\/>/,
+    `<dimension ref="${reference}"/>`,
+  );
 }
 
 function shiftMergeReference(reference, fromRow, delta) {
@@ -100,16 +123,22 @@ function shiftMergeReference(reference, fromRow, delta) {
 
 function shiftMerges(sheetXml, fromRow, delta) {
   if (!delta) return sheetXml;
-  return sheetXml.replace(/(<mergeCell\b[^>]*\bref=")([^"]+)("\s*\/>)/g, (match, before, reference, after) => (
-    `${before}${shiftMergeReference(reference, fromRow, delta)}${after}`
-  ));
+  return sheetXml.replace(
+    /(<mergeCell\b[^>]*\bref=")([^"]+)("\s*\/>)/g,
+    (match, before, reference, after) =>
+      `${before}${shiftMergeReference(reference, fromRow, delta)}${after}`,
+  );
 }
 
 function excelDateSerial(value) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return value || "";
-  return Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) / 86400000 + 25569;
+  return (
+    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) /
+      86400000 +
+    25569
+  );
 }
 
 function summaryValues(item, index, rowNumber) {
@@ -117,7 +146,11 @@ function summaryValues(item, index, rowNumber) {
     A: index + 1,
     B: item.branch || "",
     C: item.route || "",
-    D: { kind: "formula", formula: `SUM(E${rowNumber}:G${rowNumber})`, result: Number(item.total) || 0 },
+    D: {
+      kind: "formula",
+      formula: `SUM(E${rowNumber}:G${rowNumber})`,
+      result: Number(item.total) || 0,
+    },
     E: Number(item.finance) || 0,
     F: Number(item.atgt) || 0,
     G: Number(item.cldv) || 0,
@@ -128,28 +161,58 @@ function patchSummarySheet(sheetXml, summary, startDate, endDate) {
   const rows = extractRows(sheetXml);
   const dataCount = Math.max(SUMMARY_TEMPLATE_ROWS, summary.length);
   const delta = dataCount - SUMMARY_TEMPLATE_ROWS;
-  const headerRows = rows.filter(row => rowNumberOf(row) <= 6);
-  headerRows[0] = rewriteRow(headerRows[0], 1, { A: { kind: "rich", xml: reportHeaderXml(startDate, endDate) } });
+  const headerRows = rows.filter((row) => rowNumberOf(row) <= 6);
+  headerRows[0] = rewriteRow(headerRows[0], 1, {
+    A: { kind: "rich", xml: reportHeaderXml(startDate, endDate) },
+  });
 
   const templateDataRow = getRow(rows, SUMMARY_DATA_START_ROW);
   const dataRows = Array.from({ length: dataCount }, (_, index) => {
     const rowNumber = SUMMARY_DATA_START_ROW + index;
-    return rewriteRow(templateDataRow, rowNumber, summary[index] ? summaryValues(summary[index], index, rowNumber) : {});
+    return rewriteRow(
+      templateDataRow,
+      rowNumber,
+      summary[index] ? summaryValues(summary[index], index, rowNumber) : {},
+    );
   });
 
   const totalRowNumber = SUMMARY_TOTAL_ROW + delta;
   const totalRow = rewriteRow(getRow(rows, SUMMARY_TOTAL_ROW), totalRowNumber, {
     A: "Tổng",
-    D: { kind: "formula", formula: `SUM(D${SUMMARY_DATA_START_ROW}:D${totalRowNumber - 1})`, result: summary.reduce((sum, item) => sum + (Number(item.total) || 0), 0) },
-    E: { kind: "formula", formula: `SUM(E${SUMMARY_DATA_START_ROW}:E${totalRowNumber - 1})`, result: summary.reduce((sum, item) => sum + (Number(item.finance) || 0), 0) },
-    F: { kind: "formula", formula: `SUM(F${SUMMARY_DATA_START_ROW}:F${totalRowNumber - 1})`, result: summary.reduce((sum, item) => sum + (Number(item.atgt) || 0), 0) },
-    G: { kind: "formula", formula: `SUM(G${SUMMARY_DATA_START_ROW}:G${totalRowNumber - 1})`, result: summary.reduce((sum, item) => sum + (Number(item.cldv) || 0), 0) },
+    D: {
+      kind: "formula",
+      formula: `SUM(D${SUMMARY_DATA_START_ROW}:D${totalRowNumber - 1})`,
+      result: summary.reduce((sum, item) => sum + (Number(item.total) || 0), 0),
+    },
+    E: {
+      kind: "formula",
+      formula: `SUM(E${SUMMARY_DATA_START_ROW}:E${totalRowNumber - 1})`,
+      result: summary.reduce(
+        (sum, item) => sum + (Number(item.finance) || 0),
+        0,
+      ),
+    },
+    F: {
+      kind: "formula",
+      formula: `SUM(F${SUMMARY_DATA_START_ROW}:F${totalRowNumber - 1})`,
+      result: summary.reduce((sum, item) => sum + (Number(item.atgt) || 0), 0),
+    },
+    G: {
+      kind: "formula",
+      formula: `SUM(G${SUMMARY_DATA_START_ROW}:G${totalRowNumber - 1})`,
+      result: summary.reduce((sum, item) => sum + (Number(item.cldv) || 0), 0),
+    },
   });
   const footerRows = rows
-    .filter(row => rowNumberOf(row) >= SUMMARY_FOOTER_START_ROW)
-    .map(row => shiftExistingRow(row, rowNumberOf(row) + delta));
+    .filter((row) => rowNumberOf(row) >= SUMMARY_FOOTER_START_ROW)
+    .map((row) => shiftExistingRow(row, rowNumberOf(row) + delta));
 
-  let output = replaceSheetRows(sheetXml, [...headerRows, ...dataRows, totalRow, ...footerRows]);
+  let output = replaceSheetRows(sheetXml, [
+    ...headerRows,
+    ...dataRows,
+    totalRow,
+    ...footerRows,
+  ]);
   output = replaceDimension(output, `A1:G${SUMMARY_TEMPLATE_LAST_ROW + delta}`);
   return shiftMerges(output, SUMMARY_TOTAL_ROW, delta);
 }
@@ -182,8 +245,8 @@ function detailValues(item, index, rowNumber) {
 
 function patchDetailSheet(sheetXml, detailRows, employees, startDate, endDate) {
   const rows = extractRows(sheetXml);
-  const dataCount = Math.max(DETAIL_TEMPLATE_ROWS, detailRows.length);
-  const headerRows = rows.filter(row => rowNumberOf(row) <= 8);
+  const dataCount = detailRows.length;
+  const headerRows = rows.filter((row) => rowNumberOf(row) <= 8);
   headerRows[0] = rewriteRow(getRow(rows, 1), 1, {
     D: { kind: "rich", xml: reportHeaderXml(startDate, endDate) },
     S: "Mã hiệu: FCB/QLCL/QT02/M02\nLần ban hành: 03\nNgày hiệu lực: 16/03/2026",
@@ -195,7 +258,13 @@ function patchDetailSheet(sheetXml, detailRows, employees, startDate, endDate) {
   const templateDataRow = getRow(rows, 9);
   const dataRows = Array.from({ length: dataCount }, (_, index) => {
     const rowNumber = 9 + index;
-    return rewriteRow(templateDataRow, rowNumber, detailRows[index] ? detailValues(detailRows[index], index, rowNumber) : {});
+    return rewriteRow(
+      templateDataRow,
+      rowNumber,
+      detailRows[index]
+        ? detailValues(detailRows[index], index, rowNumber)
+        : {},
+    );
   });
   const output = replaceSheetRows(sheetXml, [...headerRows, ...dataRows]);
   return replaceDimension(output, `A1:U${8 + dataCount}`);
@@ -206,38 +275,100 @@ async function removeCalculationChain(zip) {
   const contentTypesFile = zip.file("[Content_Types].xml");
   if (contentTypesFile) {
     const contentTypes = await contentTypesFile.async("string");
-    zip.file("[Content_Types].xml", contentTypes.replace(/<Override\b[^>]*PartName="\/xl\/calcChain\.xml"[^>]*\/>/g, ""));
+    zip.file(
+      "[Content_Types].xml",
+      contentTypes.replace(
+        /<Override\b[^>]*PartName="\/xl\/calcChain\.xml"[^>]*\/>/g,
+        "",
+      ),
+    );
   }
   const relationsFile = zip.file("xl/_rels/workbook.xml.rels");
   if (relationsFile) {
     const relations = await relationsFile.async("string");
-    zip.file("xl/_rels/workbook.xml.rels", relations.replace(/<Relationship\b[^>]*Type="[^"]*\/calcChain"[^>]*\/>/g, ""));
+    zip.file(
+      "xl/_rels/workbook.xml.rels",
+      relations.replace(
+        /<Relationship\b[^>]*Type="[^"]*\/calcChain"[^>]*\/>/g,
+        "",
+      ),
+    );
   }
   const workbookFile = zip.file("xl/workbook.xml");
   if (workbookFile) {
     const workbookXml = await workbookFile.async("string");
-    zip.file("xl/workbook.xml", workbookXml.replace(/<calcPr\b[^>]*\/>/, '<calcPr calcMode="auto" fullCalcOnLoad="1" forceFullCalc="1"/>'));
+    zip.file(
+      "xl/workbook.xml",
+      workbookXml.replace(
+        /<calcPr\b[^>]*\/>/,
+        '<calcPr calcMode="auto" fullCalcOnLoad="1" forceFullCalc="1"/>',
+      ),
+    );
   }
 }
 
-export async function buildHauKiemReportFile(templateBuffer, { results, startDate, endDate, employees }) {
+export async function buildHauKiemReportFile(
+  templateBuffer,
+  { results, startDate, endDate, employees },
+) {
   const zip = await JSZip.loadAsync(templateBuffer);
   const summaryFile = zip.file(SUMMARY_SHEET_PATH);
   const detailFile = zip.file(DETAIL_SHEET_PATH);
-  if (!summaryFile || !detailFile) throw new Error("File mẫu phải có đủ hai sheet BCTH.HKVP và BCCT.HKVP");
+  if (!summaryFile || !detailFile)
+    throw new Error("File mẫu phải có đủ hai sheet BCTH.HKVP và BCCT.HKVP");
 
-  const [summaryXml, detailXml] = await Promise.all([summaryFile.async("string"), detailFile.async("string")]);
-  zip.file(SUMMARY_SHEET_PATH, patchSummarySheet(summaryXml, results?.summary || [], startDate, endDate));
-  zip.file(DETAIL_SHEET_PATH, patchDetailSheet(detailXml, results?.reportDetailRows || results?.detailRows || [], employees, startDate, endDate));
+  const [summaryXml, detailXml] = await Promise.all([
+    summaryFile.async("string"),
+    detailFile.async("string"),
+  ]);
+  zip.file(
+    SUMMARY_SHEET_PATH,
+    patchSummarySheet(summaryXml, results?.summary || [], startDate, endDate),
+  );
+  zip.file(
+    DETAIL_SHEET_PATH,
+    patchDetailSheet(
+      detailXml,
+      results?.reportDetailRows || results?.detailRows || [],
+      employees,
+      startDate,
+      endDate,
+    ),
+  );
   await removeCalculationChain(zip);
-  return zip.generateAsync({ type: "uint8array", compression: "DEFLATE", compressionOptions: { level: 6 } });
+  return zip.generateAsync({
+    type: "uint8array",
+    compression: "DEFLATE",
+    compressionOptions: { level: 6 },
+  });
 }
 
-export async function exportHauKiemReport({ results, startDate, endDate, employees }) {
+export async function exportHauKiemReport({
+  results,
+  startDate,
+  endDate,
+  employees,
+}) {
   const response = await fetch(TEMPLATE_URL);
   if (!response.ok) throw new Error("Không tải được file mẫu báo cáo Hậu kiểm");
-  const fileBytes = await buildHauKiemReportFile(await response.arrayBuffer(), { results, startDate, endDate, employees });
-  saveAs(new Blob([fileBytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), "CITYBUS - BÁO CÁO HẬU KIỂM BP.QLCL-DV.xlsx");
+  const fileBytes = await buildHauKiemReportFile(await response.arrayBuffer(), {
+    results,
+    startDate,
+    endDate,
+    employees,
+  });
+  saveAs(
+    new Blob([fileBytes], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    }),
+    "CITYBUS - BÁO CÁO HẬU KIỂM BP.QLCL-DV.xlsx",
+  );
 }
 
-export const __test__ = { patchSummarySheet, patchDetailSheet, rewriteRow, shiftExistingRow, shiftMergeReference };
+export const __test__ = {
+  patchSummarySheet,
+  patchDetailSheet,
+  rewriteRow,
+  shiftExistingRow,
+  shiftMergeReference,
+};
