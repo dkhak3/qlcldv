@@ -9,6 +9,7 @@ import TxdlPage from "./pages/TxdlPage";
 import Speed4hPage from "./pages/Speed4hPage";
 import GsttPage from "./pages/GsttPage";
 import HauKiemPage from "./pages/HauKiemPage";
+import AtgtPage from "./pages/AtgtPage";
 import BlogPage from "./pages/BlogPage";
 import BlogDetailPage from "./pages/BlogDetailPage";
 import BlogAdminPage from "./pages/BlogAdminPage";
@@ -46,6 +47,7 @@ export default function App() {
         <Route path="/bao-cao-toc-do-4h" element={<ProtectedRoute><Speed4hPage /></ProtectedRoute>} />
         <Route path="/bao-cao-ho-tro-gstt" element={<ProtectedRoute><GsttPage /></ProtectedRoute>} />
         <Route path="/bao-cao-hau-kiem" element={<ProtectedRoute><HauKiemPage /></ProtectedRoute>} />
+        <Route path="/bao-cao-atgt" element={<ProtectedRoute><AtgtPage /></ProtectedRoute>} />
         <Route path="/blog" element={<ProtectedRoute><ManagedPageGate pageKey="blog"><BlogPage /></ManagedPageGate></ProtectedRoute>} />
         <Route path="/blog/:slug" element={<ProtectedRoute><BlogDetailPage /></ProtectedRoute>} />
         <Route path="/tac-gia/:authorId" element={<ProtectedRoute><AuthorBlogPage /></ProtectedRoute>} />

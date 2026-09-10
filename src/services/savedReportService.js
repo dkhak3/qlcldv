@@ -1,7 +1,7 @@
 import { addDoc, collection, deleteDoc, doc, getDocs, query, serverTimestamp, where } from "firebase/firestore";
 import { firestore } from "../lib/firebaseClient";
 
-const TYPE_LABELS = { camera: "Camera", gps: "GPS", speed4h: "Tốc độ, 4H", gstt: "Hỗ trợ GSTT", haukiem: "Hậu kiểm" };
+const TYPE_LABELS = { camera: "Camera", gps: "GPS", speed4h: "Tốc độ, 4H", gstt: "Hỗ trợ GSTT", haukiem: "Hậu kiểm", atgt: "ATGT" };
 
 function compactResults(type, results) {
   if (type === "camera" || type === "gps") {
@@ -41,7 +41,7 @@ function compactResults(type, results) {
       reason: row.reason || "",
     }));
   }
-  if (type === "haukiem") {
+  if (type === "haukiem" || type === "atgt") {
     return {
       summary: (results?.summary || []).map(row => ({
         stt: row.stt,
@@ -65,7 +65,7 @@ function compactResults(type, results) {
 export function countSavedReportRows(type, results) {
   if (type === "camera" || type === "gps") return results.reduce((sum, group) => sum + group.rows.length, 0);
   if (type === "speed4h") return (results.speed?.length || 0) + (results.fourHour?.length || 0);
-  if (type === "haukiem") return results?.detailRows?.length || 0;
+  if (type === "haukiem" || type === "atgt") return results?.detailRows?.length || 0;
   return Array.isArray(results) ? results.length : 0;
 }
 

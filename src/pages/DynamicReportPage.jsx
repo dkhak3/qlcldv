@@ -10,8 +10,9 @@ import TxdlPage from "./TxdlPage";
 import Speed4hPage from "./Speed4hPage";
 import GsttPage from "./GsttPage";
 import HauKiemPage from "./HauKiemPage";
+import AtgtPage from "./AtgtPage";
 
-const SYSTEM_PAGES = { camera: CameraPage, gps: GpsPage, txdl: TxdlPage, "speed-4h": Speed4hPage, gstt: GsttPage, "hau-kiem": HauKiemPage };
+const SYSTEM_PAGES = { camera: CameraPage, gps: GpsPage, txdl: TxdlPage, "speed-4h": Speed4hPage, gstt: GsttPage, "hau-kiem": HauKiemPage, atgt: AtgtPage };
 
 export default function DynamicReportPage() {
   const { slug } = useParams();
