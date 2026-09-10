@@ -114,7 +114,7 @@ export default function GsttPage() {
         <div className="flex items-start gap-3 border-b border-slate-100 pb-5"><span className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-50 text-cyan-600"><FileSpreadsheet size={20}/></span><div><h2 className="font-bold text-ink">Dữ liệu báo cáo Hỗ trợ GSTT</h2><p className="mt-1 text-xs text-slate-500">Tất cả trường bên dưới đều bắt buộc</p></div></div>
         <div className="mt-6">
           <label className="field-label"><UploadCloud size={17}/> QLCL - HỖ TRỢ GSTT (Buýt trợ giá HCM)</label>
-          <label className="flex min-h-24 cursor-pointer items-center gap-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 transition hover:border-cyan-500 hover:bg-cyan-50/50">
+          <label className="report-file-dropzone report-file-cyan flex min-h-24 cursor-pointer items-center gap-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 transition">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-cyan-600 shadow-sm"><UploadCloud size={22}/></span>
             <span className="min-w-0 flex-1"><b className="block truncate text-sm font-semibold text-slate-700">{form.file ? form.file.name : "Chọn file Hỗ trợ GSTT"}</b><small className="mt-1 block text-xs text-slate-400">Tự tìm sheet tháng theo khoảng ngày đã chọn</small></span>
             {form.file && <CircleCheckBig className="shrink-0 text-emerald-500" size={21}/>}<input className="sr-only" type="file" accept=".xlsx" onChange={chooseFile}/>

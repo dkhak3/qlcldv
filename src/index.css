@@ -18,15 +18,21 @@
   .field-label { @apply mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700; }
   .field-input { @apply h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-100; }
   .report-input { --report-input-rgb: 249 115 22; }
-  .report-input-orange { --report-input-rgb: 249 115 22; }
-  .report-input-blue { --report-input-rgb: 37 99 235; }
-  .report-input-violet { --report-input-rgb: 124 58 237; }
-  .report-input-cyan { --report-input-rgb: 8 145 178; }
-  .report-input-emerald { --report-input-rgb: 5 150 105; }
+  .report-input-orange, .report-file-orange { --report-input-rgb: 249 115 22; }
+  .report-input-blue, .report-file-blue { --report-input-rgb: 37 99 235; }
+  .report-input-violet, .report-file-violet { --report-input-rgb: 124 58 237; }
+  .report-input-cyan, .report-file-cyan { --report-input-rgb: 8 145 178; }
+  .report-input-emerald, .report-file-emerald { --report-input-rgb: 5 150 105; }
   .report-input:hover,
   .report-input:focus {
     border-color: rgb(var(--report-input-rgb));
     background-color: rgb(var(--report-input-rgb) / .055);
+    box-shadow: 0 0 0 4px rgb(var(--report-input-rgb) / .13);
+  }
+  .report-file-dropzone:hover,
+  .report-file-dropzone:focus-within {
+    border-color: rgb(var(--report-input-rgb));
+    background-color: rgb(var(--report-input-rgb) / .075);
     box-shadow: 0 0 0 4px rgb(var(--report-input-rgb) / .13);
   }
   .primary-button { @apply inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-brand-500 px-5 text-sm font-bold text-white shadow-lg shadow-orange-200 transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none; }
@@ -39,6 +45,12 @@
   .dark .report-input:focus {
     border-color: rgb(var(--report-input-rgb));
     background-color: rgb(var(--report-input-rgb) / .14);
+    box-shadow: 0 0 0 4px rgb(var(--report-input-rgb) / .22);
+  }
+  .dark .report-file-dropzone:hover,
+  .dark .report-file-dropzone:focus-within {
+    border-color: rgb(var(--report-input-rgb));
+    background-color: rgb(var(--report-input-rgb) / .18);
     box-shadow: 0 0 0 4px rgb(var(--report-input-rgb) / .22);
   }
   .dark .primary-button { @apply bg-orange-800 text-orange-50 shadow-none hover:bg-orange-700; }

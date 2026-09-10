@@ -120,7 +120,7 @@ export default function Speed4hPage() {
 
         <div className="mt-6">
           <label className="field-label"><UploadCloud size={17}/> QLCL - GỌI TỐC ĐỘ, 4H</label>
-          <label className="flex min-h-24 cursor-pointer items-center gap-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 transition hover:border-violet-500 hover:bg-violet-50/50">
+          <label className="report-file-dropzone report-file-violet flex min-h-24 cursor-pointer items-center gap-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 transition">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-violet-600 shadow-sm"><UploadCloud size={22}/></span>
             <span className="min-w-0 flex-1"><b className="block truncate text-sm font-semibold text-slate-700">{form.file ? form.file.name : "Chọn file Tốc độ, 4H"}</b><small className="mt-1 block text-xs text-slate-400">Dùng hai sheet TỐC ĐỘ và 4H</small></span>
             {form.file && <CircleCheckBig className="shrink-0 text-emerald-500" size={21}/>}<input className="sr-only" type="file" accept=".xlsx" onChange={chooseFile}/>
