@@ -34,7 +34,7 @@ Với riêng file ngày 24/08/2026:
 - 70 lượt giám sát.
 - Sheet `BCCT.HKVP` kết thúc đúng tại dòng 77, không có khung thừa.
 
-## 3. Cài đặt an toàn
+## 3. Cài đặt trực tiếp từ nhánh GitHub
 
 ### Bước 1 — Vào dự án và kiểm tra code hiện tại
 
@@ -50,39 +50,39 @@ git add -A
 git commit -m "chore: luu code hien tai truoc khi them ATGT"
 ```
 
-### Bước 2 — Cập nhật main và tạo nhánh riêng
+### Bước 2 — Lấy nhánh ATGT đã chuẩn bị sẵn
 
 ```bash
-git switch main
-git pull --rebase origin main
-git switch -c feature/bao-cao-tuan-atgt
+git fetch origin
+git switch -c feature/bao-cao-tuan-atgt --track origin/feature/bao-cao-tuan-atgt
 ```
 
-Nếu Git báo nhánh đã tồn tại, dùng:
+Nếu máy đã có nhánh này, dùng:
 
 ```bash
 git switch feature/bao-cao-tuan-atgt
+git pull --ff-only origin feature/bao-cao-tuan-atgt
 ```
 
-### Bước 3 — Giải nén gói code
+### Bước 3 — Thêm mẫu Excel trắng có sẵn trên máy
 
-Giả sử file zip nằm trong `Downloads`:
+Vì repository đang công khai, mẫu Excel nội bộ không được tự động đăng lên GitHub. Kiểm tra tên file ATGT trong Downloads:
 
 ```bash
-mkdir -p /tmp/qlcldv-atgt
-unzip -o ~/Downloads/QLCLDV-them-bao-cao-tuan-ATGT-10-09-2026.zip -d /tmp/qlcldv-atgt
+find ~/Downloads -maxdepth 1 -type f -iname '*ATGT*.xlsx' -print
 ```
 
-### Bước 4 — Chép code vào dự án
+Sau đó chép đúng file mẫu trắng `CITYBUS - BÁO CÁO ATGT BP.QLCL-DV.xlsx` vào dự án và chuẩn hóa tên:
 
 ```bash
-cp -R /tmp/qlcldv-atgt/src/. src/
-cp -R /tmp/qlcldv-atgt/public/. public/
+mkdir -p public/templates
+cp "/duong/dan/file/CITYBUS - BÁO CÁO ATGT BP.QLCL-DV.xlsx" \
+  public/templates/CITYBUS-BAO-CAO-ATGT-BP-QLCL-DV.xlsx
 ```
 
-Các lệnh trên chỉ chép những file có trong gói, không xóa file khác của dự án.
+Thay `/duong/dan/file/...` bằng đúng đường dẫn vừa được lệnh `find` hiển thị.
 
-### Bước 5 — Kiểm tra các file mới
+### Bước 4 — Kiểm tra các file mới
 
 ```bash
 test -f src/pages/AtgtPage.jsx && echo "OK AtgtPage"
@@ -128,7 +128,7 @@ http://localhost:5173
 
 Lưu ý: khoảng ngày người dùng nhập không được dùng để lọc file. Hệ thống luôn tổng hợp toàn bộ nội dung của các file đã chọn.
 
-## 6. Commit và đẩy lên GitHub
+## 6. Gộp nhánh ATGT vào main
 
 Kiểm tra thay đổi:
 
@@ -136,45 +136,16 @@ Kiểm tra thay đổi:
 git status
 ```
 
-Thêm đúng các file của chức năng ATGT:
+Sau khi đã chép mẫu Excel, thêm và commit riêng file mẫu:
 
 ```bash
-git add \
-  src/App.jsx \
-  src/data/reportBoxes.js \
-  src/index.css \
-  src/pages/AtgtPage.jsx \
-  src/pages/DynamicReportPage.jsx \
-  src/pages/ReportBoxAdminPage.jsx \
-  src/pages/SavedReportsPage.jsx \
-  src/services/reportBoxService.js \
-  src/services/savedReportService.js \
-  src/utils/atgtProcessor.js \
-  src/utils/exportAtgtReport.js \
-  src/utils/exportSavedReport.js \
-  public/templates/CITYBUS-BAO-CAO-ATGT-BP-QLCL-DV.xlsx
-```
-
-Xem lại trước khi commit:
-
-```bash
-git diff --cached --stat
 npm run build
+git add public/templates/CITYBUS-BAO-CAO-ATGT-BP-QLCL-DV.xlsx
+git commit -m "chore: them mau Excel bao cao ATGT"
+git push origin feature/bao-cao-tuan-atgt
 ```
 
-Commit:
-
-```bash
-git commit -m "feat: them bao cao tuan ATGT"
-```
-
-Đẩy nhánh lên GitHub:
-
-```bash
-git push -u origin feature/bao-cao-tuan-atgt
-```
-
-Sau đó mở GitHub, chọn `Compare & pull request`, tạo Pull Request từ `feature/bao-cao-tuan-atgt` vào `main`, kiểm tra rồi bấm `Merge pull request`.
+Sau đó mở GitHub, tạo Pull Request từ `feature/bao-cao-tuan-atgt` vào `main`, kiểm tra rồi bấm `Merge pull request`.
 
 Cuối cùng cập nhật máy về main mới:
 
@@ -188,4 +159,3 @@ Nếu dự án Vercel đã liên kết với GitHub và Production Branch là `m
 ## 7. Firebase/Vercel
 
 Chức năng này không thêm collection Firestore mới và không cần sửa Firestore Rules. Các biến môi trường Firebase/Vercel hiện tại của dự án được giữ nguyên.
-
