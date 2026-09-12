@@ -23,6 +23,44 @@ const escapeXml = (value) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&apos;");
 
+function fontColorXml(color) {
+  if (!color) return "";
+  if (color.argb) return `<color rgb="${escapeXml(color.argb)}"/>`;
+  if (color.theme != null) return `<color theme="${escapeXml(color.theme)}"${color.tint != null ? ` tint="${escapeXml(color.tint)}"` : ""}/>`;
+  if (color.indexed != null) return `<color indexed="${escapeXml(color.indexed)}"/>`;
+  return "";
+}
+
+function runPropertiesXml(font = {}) {
+  const properties = [
+    font.name ? `<rFont val="${escapeXml(font.name)}"/>` : "",
+    font.charset != null ? `<charset val="${escapeXml(font.charset)}"/>` : "",
+    font.family != null ? `<family val="${escapeXml(font.family)}"/>` : "",
+    font.size != null ? `<sz val="${escapeXml(font.size)}"/>` : "",
+    font.bold ? "<b/>" : "",
+    font.italic ? "<i/>" : "",
+    font.strike ? "<strike/>" : "",
+    font.underline ? `<u${typeof font.underline === "string" ? ` val="${escapeXml(font.underline)}"` : ""}/>` : "",
+    font.vertAlign ? `<vertAlign val="${escapeXml(font.vertAlign)}"/>` : "",
+    fontColorXml(font.color),
+    font.scheme ? `<scheme val="${escapeXml(font.scheme)}"/>` : "",
+  ].join("");
+  return properties ? `<rPr>${properties}</rPr>` : "";
+}
+
+function richTextXml(runs) {
+  const usableRuns = (runs || []).filter(run => String(run?.text ?? ""));
+  if (!usableRuns.length) return "";
+  return `<is>${usableRuns.map(run => `<r>${runPropertiesXml(run.font)}<t xml:space="preserve">${escapeXml(run.text)}</t></r>`).join("")}</is>`;
+}
+
+function styledCellValue(value, runs) {
+  const text = String(value ?? "");
+  const runText = (runs || []).map(run => String(run?.text ?? "")).join("");
+  const xml = runText.trim() === text.trim() ? richTextXml(runs) : "";
+  return xml ? { kind: "rich", xml } : text;
+}
+
 function reportHeaderXml(startDate, endDate) {
   const period = `(Từ ngày ${formatDateVi(startDate)} đến ngày ${formatDateVi(endDate)})`;
   return `<is><r><rPr><rFont val="Times New Roman"/><sz val="16"/><b/></rPr><t>${escapeXml(REPORT_TITLE)}</t></r><r><rPr><rFont val="Times New Roman"/><sz val="13"/><b/><i/></rPr><t xml:space="preserve">&#10;${escapeXml(period)}</t></r></is>`;
@@ -56,8 +94,12 @@ function cellXml(address, attributes, value) {
     return `<c r="${address}"${cleanAttributes}/>`;
   if (value?.kind === "rich")
     return `<c r="${address}"${cleanAttributes} t="inlineStr">${value.xml}</c>`;
-  if (value?.kind === "formula")
+  if (value?.kind === "formula") {
+    if (value.result == null || value.result === "") {
+      return `<c r="${address}"${cleanAttributes} t="str"><f>${escapeXml(value.formula)}</f><v></v></c>`;
+    }
     return `${prefix}<f>${escapeXml(value.formula)}</f><v>${Number(value.result) || 0}</v></c>`;
+  }
   if (typeof value === "number" && Number.isFinite(value))
     return `${prefix}<v>${value}</v></c>`;
   return `<c r="${address}"${cleanAttributes} t="inlineStr"><is><t xml:space="preserve">${escapeXml(value)}</t></is></c>`;
@@ -218,6 +260,15 @@ function patchSummarySheet(sheetXml, summary, startDate, endDate) {
 }
 
 function detailValues(item, index, rowNumber) {
+  const differenceValue = (reportedColumn, actualColumn, reportedValue, actualValue) => {
+    const difference = (Number(reportedValue) || 0) - (Number(actualValue) || 0);
+    const expression = `SUM(${reportedColumn}${rowNumber},-${actualColumn}${rowNumber})`;
+    return {
+      kind: "formula",
+      formula: `IF(${expression}=0,"",${expression})`,
+      result: difference === 0 ? "" : difference,
+    };
+  };
   return {
     A: index + 1,
     B: item.branch || "",
@@ -228,18 +279,18 @@ function detailValues(item, index, rowNumber) {
     G: excelDateSerial(item.date),
     H: item.driver || "",
     I: item.assistant || "",
-    J: item.serviceQuality || "",
-    K: item.roadSafety || "",
+    J: styledCellValue(item.serviceQuality, item.serviceQualityRuns),
+    K: styledCellValue(item.roadSafety, item.roadSafetyRuns),
     L: item.actualPassengers ?? "",
     M: item.actualLuggage ?? "",
     N: item.actualFreeTickets ?? "",
     O: item.reportedPassengers ?? "",
     P: item.reportedLuggage ?? "",
     Q: item.reportedFreeTickets ?? "",
-    R: { kind: "formula", formula: `O${rowNumber}-L${rowNumber}`, result: 0 },
-    S: { kind: "formula", formula: `P${rowNumber}-M${rowNumber}`, result: 0 },
-    T: { kind: "formula", formula: `Q${rowNumber}-N${rowNumber}`, result: 0 },
-    U: item.note || "",
+    R: differenceValue("O", "L", item.reportedPassengers, item.actualPassengers),
+    S: differenceValue("P", "M", item.reportedLuggage, item.actualLuggage),
+    T: differenceValue("Q", "N", item.reportedFreeTickets, item.actualFreeTickets),
+    U: styledCellValue(item.note, item.noteRuns),
   };
 }
 
