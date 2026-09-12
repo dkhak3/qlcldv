@@ -28,6 +28,54 @@ function reportHeaderXml(startDate, endDate) {
   return `<is><r><rPr><rFont val="Times New Roman"/><sz val="16"/><b/></rPr><t>${escapeXml(REPORT_TITLE)}</t></r><r><rPr><rFont val="Times New Roman"/><sz val="13"/><b/><i/></rPr><t xml:space="preserve">&#10;${escapeXml(period)}</t></r></is>`;
 }
 
+function fontColorXml(color) {
+  if (!color) return "";
+  if (color.argb) return `<color rgb="${escapeXml(color.argb)}"/>`;
+  if (color.theme != null) {
+    const tint = color.tint != null ? ` tint="${escapeXml(color.tint)}"` : "";
+    return `<color theme="${escapeXml(color.theme)}"${tint}/>`;
+  }
+  if (color.indexed != null) return `<color indexed="${escapeXml(color.indexed)}"/>`;
+  return "";
+}
+
+function runPropertiesXml(font = {}) {
+  const properties = [
+    font.name ? `<rFont val="${escapeXml(font.name)}"/>` : "",
+    font.charset != null ? `<charset val="${escapeXml(font.charset)}"/>` : "",
+    font.family != null ? `<family val="${escapeXml(font.family)}"/>` : "",
+    font.size != null ? `<sz val="${escapeXml(font.size)}"/>` : "",
+    font.bold ? "<b/>" : "",
+    font.italic ? "<i/>" : "",
+    font.strike ? "<strike/>" : "",
+    font.underline ? `<u${typeof font.underline === "string" ? ` val="${escapeXml(font.underline)}"` : ""}/>` : "",
+    font.vertAlign ? `<vertAlign val="${escapeXml(font.vertAlign)}"/>` : "",
+    fontColorXml(font.color),
+    font.scheme ? `<scheme val="${escapeXml(font.scheme)}"/>` : "",
+  ].join("");
+  return properties ? `<rPr>${properties}</rPr>` : "";
+}
+
+function richTextXml(runs) {
+  const usableRuns = Array.isArray(runs) ? runs.filter(run => String(run?.text ?? "")) : [];
+  if (!usableRuns.length) return "";
+  return `<is>${usableRuns.map(run => `<r>${runPropertiesXml(run.font)}<t xml:space="preserve">${escapeXml(run.text)}</t></r>`).join("")}</is>`;
+}
+
+function styledCellValue(value, runs) {
+  const text = String(value ?? "");
+  if (!text) return "";
+  const runText = Array.isArray(runs) ? runs.map(run => String(run?.text ?? "")).join("") : "";
+  const xml = runText.trim() === text.trim() ? richTextXml(runs) : "";
+  return xml ? { kind: "rich", xml } : text;
+}
+
+function originalM02Note(value) {
+  return String(value ?? "")
+    .replace(/\s*\[ĐỐI CHIẾU M03:\s*TRÙNG KHỚP\][\s\S]*$/iu, "")
+    .trim();
+}
+
 function rowNumberOf(rowXml) {
   return Number(rowXml.match(/<row\b[^>]*\br="(\d+)"/)?.[1] || 0);
 }
@@ -218,6 +266,7 @@ function patchSummarySheet(sheetXml, summary, startDate, endDate) {
 }
 
 function detailValues(item, index, rowNumber) {
+  const note = originalM02Note(item.note);
   return {
     A: index + 1,
     B: item.branch || "",
@@ -228,8 +277,8 @@ function detailValues(item, index, rowNumber) {
     G: excelDateSerial(item.date),
     H: item.driver || "",
     I: item.assistant || "",
-    J: item.serviceQuality || "",
-    K: item.roadSafety || "",
+    J: styledCellValue(item.serviceQuality, item.serviceQualityRuns),
+    K: styledCellValue(item.roadSafety, item.roadSafetyRuns),
     L: item.actualPassengers ?? "",
     M: item.actualLuggage ?? "",
     N: item.actualFreeTickets ?? "",
@@ -239,7 +288,7 @@ function detailValues(item, index, rowNumber) {
     R: { kind: "formula", formula: `O${rowNumber}-L${rowNumber}`, result: 0 },
     S: { kind: "formula", formula: `P${rowNumber}-M${rowNumber}`, result: 0 },
     T: { kind: "formula", formula: `Q${rowNumber}-N${rowNumber}`, result: 0 },
-    U: item.note || "",
+    U: styledCellValue(note, item.noteRuns),
   };
 }
 
