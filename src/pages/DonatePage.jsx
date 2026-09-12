@@ -45,15 +45,35 @@ export default function DonatePage() {
   if (loading) return <section className="mx-auto flex min-h-[65vh] max-w-6xl items-center justify-center px-4"><LoaderCircle className="animate-spin text-amber-500" size={38}/></section>;
 
   return <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
-    {donationHidden ? <div className="relative overflow-hidden rounded-[32px] border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 px-6 py-11 text-center shadow-soft dark:border-amber-900/50 dark:from-slate-900 dark:via-amber-950/20 dark:to-slate-900 sm:px-12 sm:py-14">
-      <div className="pointer-events-none absolute -left-16 -top-20 h-52 w-52 rounded-full bg-amber-300/25 blur-3xl dark:bg-amber-600/10"/>
-      <div className="pointer-events-none absolute -bottom-20 -right-16 h-56 w-56 rounded-full bg-orange-300/20 blur-3xl dark:bg-orange-700/10"/>
-      <span className="relative mx-auto grid h-16 w-16 place-items-center rounded-full border border-amber-200 bg-white text-amber-600 shadow-lg shadow-amber-100 dark:border-amber-800 dark:bg-slate-900 dark:text-amber-300 dark:shadow-none"><HeartHandshake size={29}/></span>
-      <span className="relative mt-5 inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.22em] text-amber-700 dark:text-amber-300"><Sparkles size={13}/>Một lời từ QLCL-DV</span>
-      <h1 className="relative mt-3 font-serif text-3xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-4xl">Xin phép tạm ẩn Donate</h1>
-      <div className="relative mx-auto mt-5 h-px w-28 bg-gradient-to-r from-transparent via-amber-500 to-transparent"/>
-      <p className="relative mx-auto mt-6 max-w-3xl text-sm leading-8 text-slate-600 dark:text-slate-300 sm:text-base">Kha xin phép tạm ẩn phần nhận ủng hộ trong thời gian này. Cảm ơn tất cả anh em đã đón nhận QLCL-DV bằng rất nhiều sự tin tưởng, những lời động viên và những góp ý đầy tích cực. Mỗi tình cảm anh em dành cho dự án — dù là một lời chia sẻ hay một khoản ủng hộ — đều khiến mình thật sự biết ơn và có thêm động lực để tiếp tục hoàn thiện công cụ tốt hơn mỗi ngày.</p>
-      <p className="relative mx-auto mt-5 max-w-2xl font-serif text-base font-bold italic leading-7 text-amber-800 dark:text-amber-200">Trân trọng cảm ơn và biết ơn anh em đã luôn đồng hành cùng QLCL-DV. 💛</p>
+    {donationHidden ? <div className="relative isolate overflow-hidden rounded-[36px] border border-amber-200/80 bg-[#fffaf0] shadow-[0_32px_90px_-52px_rgba(120,74,8,.45)] dark:border-amber-900/50 dark:bg-slate-900">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent"/>
+      <div className="pointer-events-none absolute -left-24 -top-24 -z-10 h-72 w-72 rounded-full bg-amber-200/45 blur-3xl dark:bg-amber-600/10"/>
+      <div className="pointer-events-none absolute -bottom-32 -right-20 -z-10 h-80 w-80 rounded-full bg-orange-200/35 blur-3xl dark:bg-orange-700/10"/>
+
+      <div className="grid items-stretch lg:grid-cols-[.82fr_1.18fr]">
+        <div className="flex flex-col justify-between border-b border-amber-200/70 px-6 py-9 sm:px-9 sm:py-11 lg:border-b-0 lg:border-r lg:px-11 lg:py-12">
+          <div>
+            <span className="grid h-14 w-14 place-items-center rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-300 to-yellow-500 text-amber-950 shadow-lg shadow-amber-200/50 dark:shadow-none"><HeartHandshake size={26}/></span>
+            <span className="mt-7 inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.22em] text-amber-700 dark:text-amber-300"><Sparkles size={13}/>Một lời từ QLCL-DV</span>
+            <h1 className="mt-4 text-3xl font-bold leading-tight tracking-[-.035em] text-slate-950 dark:text-white sm:text-4xl">Xin phép tạm ẩn Donate</h1>
+            <p className="mt-4 max-w-md text-sm leading-7 text-slate-500 dark:text-slate-400">Phần tiếp nhận ủng hộ đang tạm dừng, nhưng mọi sự đồng hành của anh em vẫn luôn được trân trọng và ghi nhớ.</p>
+          </div>
+          <div className="mt-9 flex items-center gap-3 border-t border-amber-200/70 pt-5 dark:border-amber-900/50">
+            <ShieldCheck className="shrink-0 text-amber-600 dark:text-amber-300" size={18}/>
+            <span className="text-xs font-semibold leading-5 text-slate-600 dark:text-slate-300">Bảng Vàng Ủng Hộ vẫn được lưu giữ và hiển thị bên dưới.</span>
+          </div>
+        </div>
+
+        <div className="p-5 sm:p-7 lg:p-9">
+          <div className="relative flex h-full flex-col justify-center rounded-[28px] border border-white/90 bg-white/80 p-6 shadow-[0_24px_65px_-42px_rgba(120,74,8,.5)] backdrop-blur-sm dark:border-amber-900/40 dark:bg-slate-950/45 sm:p-8 lg:p-10">
+            <span className="absolute right-7 top-5 text-6xl font-bold leading-none text-amber-200/70 dark:text-amber-700/20">“</span>
+            <p className="relative text-sm leading-8 text-slate-600 dark:text-slate-300 sm:text-[15px]">Kha xin phép tạm ẩn phần nhận ủng hộ trong thời gian này. Cảm ơn tất cả anh em đã đón nhận QLCL-DV bằng rất nhiều sự tin tưởng, những lời động viên và những góp ý đầy tích cực. Mỗi tình cảm anh em dành cho dự án — dù là một lời chia sẻ hay một khoản ủng hộ — đều khiến mình thật sự biết ơn và có thêm động lực để tiếp tục hoàn thiện công cụ tốt hơn mỗi ngày.</p>
+            <div className="mt-7 h-px w-full bg-gradient-to-r from-amber-300 via-amber-200 to-transparent dark:from-amber-700 dark:via-amber-900"/>
+            <p className="mt-5 text-sm font-bold italic leading-7 text-amber-800 dark:text-amber-200">Trân trọng cảm ơn và biết ơn anh em đã luôn đồng hành cùng QLCL-DV. 💛</p>
+            <span className="mt-3 text-[11px] font-semibold uppercase tracking-[.16em] text-slate-400">Nguyễn Hữu Duy Kha</span>
+          </div>
+        </div>
+      </div>
     </div> : <div className="relative overflow-hidden rounded-[30px] border border-rose-100 bg-gradient-to-br from-white via-rose-50/70 to-orange-50 px-6 py-10 text-center shadow-soft dark:border-slate-800 dark:from-slate-900 dark:via-rose-950/20 dark:to-orange-950/20 sm:px-10 sm:py-14">
       <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-rose-200/30 blur-3xl dark:bg-rose-700/10"/>
       <span className="relative mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-rose-500 text-white shadow-lg shadow-rose-200 dark:shadow-none"><Heart fill="currentColor" size={25}/></span>

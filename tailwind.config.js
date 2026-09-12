@@ -4,7 +4,7 @@ export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
   theme: {
     extend: {
-      fontFamily: { sans: ["Be Vietnam Pro", "ui-sans-serif", "system-ui", "sans-serif"] },
+      fontFamily: { sans: ["Be Vietnam Pro", "Segoe UI", "Arial", "ui-sans-serif", "system-ui", "sans-serif"] },
       colors: {
         ink: "#172033",
         brand: { 50: "#fff7ed", 100: "#ffedd5", 500: "#f47a1f", 600: "#e56812", 700: "#bd4f0d" },
