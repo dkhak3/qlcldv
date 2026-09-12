@@ -28,7 +28,7 @@ const rankStyles = {
   },
   2: {
     card: "border-slate-300/90 bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:border-slate-500/40 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800/80",
-    emblem: "border-slate-300 bg-gradient-to-br from-slate-100 to-slate-300 text-slate-700 shadow-slate-300/25 dark:border-slate-400",
+    emblem: "border-slate-300 bg-gradient-to-br from-slate-100 to-slate-300 text-[#334155] shadow-slate-300/25 dark:border-slate-400 dark:text-[#334155]",
     label: "text-slate-600 dark:text-slate-300",
     amount: "text-slate-700 dark:text-slate-200",
     glow: "bg-slate-300/30 dark:bg-slate-400/10",
