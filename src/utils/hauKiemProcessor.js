@@ -16,6 +16,45 @@ const cellValue = cell => {
   return value;
 };
 
+const compactColor = color => {
+  if (!color) return null;
+  if (color.argb) return { argb: color.argb };
+  if (color.theme != null) return { theme: color.theme, ...(color.tint != null ? { tint: color.tint } : {}) };
+  if (color.indexed != null) return { indexed: color.indexed };
+  return null;
+};
+
+const compactFont = font => {
+  if (!font) return {};
+  return {
+    ...(font.name ? { name: font.name } : {}),
+    ...(font.size != null ? { size: font.size } : {}),
+    ...(font.family != null ? { family: font.family } : {}),
+    ...(font.charset != null ? { charset: font.charset } : {}),
+    ...(font.scheme ? { scheme: font.scheme } : {}),
+    ...(font.bold != null ? { bold: font.bold } : {}),
+    ...(font.italic != null ? { italic: font.italic } : {}),
+    ...(font.underline != null ? { underline: font.underline } : {}),
+    ...(font.strike != null ? { strike: font.strike } : {}),
+    ...(font.vertAlign ? { vertAlign: font.vertAlign } : {}),
+    ...(compactColor(font.color) ? { color: compactColor(font.color) } : {}),
+  };
+};
+
+function styledTextRuns(cell) {
+  const value = cell?.value;
+  if (value?.richText) {
+    return value.richText
+      .map(run => ({
+        text: String(run.text ?? ""),
+        font: compactFont({ ...(cell.font || {}), ...(run.font || {}) }),
+      }))
+      .filter(run => run.text);
+  }
+  const text = String(cellValue(cell) ?? "").trim();
+  return text ? [{ text, font: compactFont(cell?.font) }] : [];
+}
+
 const cleanText = value => String(value ?? "").replace(/\s+/g, " ").trim();
 const preserveText = value => String(value ?? "").trim();
 const comparable = value => normalizeText(value).replace(/[^A-Z0-9]+/g, " ").replace(/\s+/g, " ").trim();
@@ -69,6 +108,9 @@ function parseM02(sheet, reportDate = "") {
   const rows = [];
   for (let rowNumber = headerRow + 1; rowNumber <= sheet.rowCount; rowNumber += 1) {
     const row = sheet.getRow(rowNumber);
+    const serviceQualityCell = row.getCell(10);
+    const roadSafetyCell = row.getCell(11);
+    const noteCell = row.getCell(21);
     const branch = cleanText(cellValue(row.getCell(2)));
     const route = cleanText(cellValue(row.getCell(3)));
     const vehicle = cleanText(cellValue(row.getCell(4)));
@@ -88,15 +130,18 @@ function parseM02(sheet, reportDate = "") {
       date,
       driver: cleanText(cellValue(row.getCell(8))),
       assistant: cleanText(cellValue(row.getCell(9))),
-      serviceQuality: cleanText(cellValue(row.getCell(10))),
-      roadSafety: cleanText(cellValue(row.getCell(11))),
+      serviceQuality: cleanText(cellValue(serviceQualityCell)),
+      serviceQualityRuns: styledTextRuns(serviceQualityCell),
+      roadSafety: cleanText(cellValue(roadSafetyCell)),
+      roadSafetyRuns: styledTextRuns(roadSafetyCell),
       actualPassengers: cellValue(row.getCell(12)) ?? "",
       actualLuggage: cellValue(row.getCell(13)) ?? "",
       actualFreeTickets: cellValue(row.getCell(14)) ?? "",
       reportedPassengers: cellValue(row.getCell(15)) ?? "",
       reportedLuggage: cellValue(row.getCell(16)) ?? "",
       reportedFreeTickets: cellValue(row.getCell(17)) ?? "",
-      note: preserveText(cellValue(row.getCell(21))),
+      note: preserveText(cellValue(noteCell)),
+      noteRuns: styledTextRuns(noteCell),
     });
   }
   return rows;
@@ -265,21 +310,9 @@ export async function processHauKiemFiles(files) {
       } : null,
     };
   });
-  const reportViolations = violations.filter(row => row.category !== "other");
-  const matchesByM02Row = new Map();
-  reportViolations.filter(row => row.matchedM02).forEach(row => {
-    const key = `${row.matchedM02Data.sourceFile}::${row.matchedM02Data.sourceRow}`;
-    const current = matchesByM02Row.get(key) || [];
-    matchesByM02Row.set(key, [...current, row]);
-  });
-  const reportDetailRows = detailRows.map(row => {
-    const matches = matchesByM02Row.get(`${row.sourceFile}::${row.sourceRow}`) || [];
-    if (!matches.length) return row;
-    return {
-      ...row,
-      note: `${row.note}${row.note ? "\n\n" : ""}[ĐỐI CHIẾU M03: TRÙNG KHỚP]\n${matches.map(item => item.violation).join("\n")}`,
-    };
-  });
+  // GHI CHÚ trong BCCT.HKVP phải giữ nguyên nội dung người dùng đã nhập ở
+  // M02. Kết quả đối chiếu M03 chỉ hiển thị trên web, không nối thêm vào ô này.
+  const reportDetailRows = detailRows.map(row => ({ ...row }));
   // BCCT.HKVP chỉ chứa các dòng hậu kiểm gốc của M02. Trường hợp có trong
   // danh sách vi phạm M03 nhưng không tìm thấy dòng M02 tương ứng vẫn được
   // giữ trong `violations` để hiển thị/đối chiếu trên web, nhưng tuyệt đối
