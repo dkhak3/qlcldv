@@ -65,12 +65,12 @@ function makePayload(item) {
   const donatedAt = new Date(item.donatedAt);
 
   if (!donorName) throw new Error("Vui lòng nhập tên người Donate");
-  if (!Number.isFinite(amount) || amount <= 0) throw new Error("Số tiền Donate phải lớn hơn 0");
+  if (!Number.isInteger(amount) || amount <= 0) throw new Error("Số tiền Donate phải là số nguyên VNĐ lớn hơn 0");
   if (Number.isNaN(donatedAt.getTime())) throw new Error("Thời gian Donate không hợp lệ");
 
   return {
     donorName,
-    amount: Math.round(amount),
+    amount,
     message: String(item.message || "").replace(/\s+/g, " ").trim(),
     donatedAt: Timestamp.fromDate(donatedAt),
     hidden: Boolean(item.hidden),

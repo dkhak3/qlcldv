@@ -155,14 +155,14 @@ export default function TopDonateSection() {
             <span className="h-px flex-1 bg-gradient-to-l from-transparent to-amber-200 dark:to-amber-900"/>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            {remainingItems.map(item => <article key={item.id} className="group flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white/85 p-4 shadow-[0_15px_36px_-30px_rgba(15,23,42,.45)] transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-[0_20px_42px_-28px_rgba(146,91,14,.35)] dark:border-slate-700 dark:bg-slate-900/80 dark:hover:border-amber-700">
+            {remainingItems.map(item => <article key={item.id} className="group grid min-w-0 grid-cols-[44px_minmax(0,1fr)] items-start gap-x-3 gap-y-2 rounded-2xl border border-slate-200/80 bg-white/85 p-4 shadow-[0_15px_36px_-30px_rgba(15,23,42,.45)] transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-[0_20px_42px_-28px_rgba(146,91,14,.35)] dark:border-slate-700 dark:bg-slate-900/80 dark:hover:border-amber-700 sm:flex sm:items-center sm:gap-4">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-amber-200 bg-amber-50 text-sm font-bold tabular-nums text-amber-700 dark:border-amber-900 dark:bg-amber-950/35 dark:text-amber-300">#{item.rank}</span>
               <div className="min-w-0 flex-1">
                 <h3 className="truncate text-sm font-bold text-slate-800 dark:text-white" title={item.donorName}>{item.donorName}</h3>
                 {item.message && <p className="mt-1 truncate text-xs italic text-slate-400">“{item.message}”</p>}
                 {item.donatedAt && <time className="mt-1.5 flex items-center gap-1 text-[10px] font-medium text-slate-400"><CalendarDays size={11}/>{formatDate(item.donatedAt)}</time>}
               </div>
-              <b className="shrink-0 text-right text-sm font-bold tabular-nums text-amber-700 dark:text-amber-300">{currencyFormatter.format(item.amount)}</b>
+              <b className="col-start-2 block max-w-full whitespace-nowrap text-left text-[13px] font-bold tabular-nums text-amber-700 dark:text-amber-300 sm:ml-auto sm:shrink-0 sm:text-right sm:text-sm">{currencyFormatter.format(item.amount)}</b>
             </article>)}
           </div>
         </div>}
