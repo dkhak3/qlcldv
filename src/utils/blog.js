@@ -1,3 +1,5 @@
+import { blogContentToPlainText } from "./blogContent";
+
 export function slugifyBlogTitle(value = "") {
   return value
     .normalize("NFD")
@@ -48,7 +50,7 @@ export function formatDateTimeVi(value) {
 }
 
 export function calculateReadTime(content = "") {
-  const words = content.trim().split(/\s+/).filter(Boolean).length;
+  const words = blogContentToPlainText(content).split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.ceil(words / 220));
 }
 
