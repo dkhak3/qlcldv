@@ -99,3 +99,214 @@ html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: rg
 html.dark .hover\:bg-slate-100:hover { background-color: rgb(30 41 59); }
 html.dark .hover\:bg-slate-200:hover { background-color: rgb(51 65 85); }
 html.dark input[type="date"] { color-scheme: dark; }
+
+/* Giao diện Tết Việt Nam - bật/tắt bằng TetThemeContext. */
+html.tet-theme body {
+  background-color: #fff8ee;
+  background-image:
+    radial-gradient(circle at 8% 10%, rgb(245 158 11 / .10), transparent 24rem),
+    radial-gradient(circle at 92% 28%, rgb(220 38 38 / .08), transparent 28rem),
+    linear-gradient(180deg, #fffaf2 0%, #fff7ed 46%, #fffaf5 100%);
+}
+
+html.dark.tet-theme body {
+  background-color: #140b0c;
+  background-image:
+    radial-gradient(circle at 8% 10%, rgb(245 158 11 / .10), transparent 26rem),
+    radial-gradient(circle at 92% 28%, rgb(185 28 28 / .16), transparent 32rem),
+    linear-gradient(180deg, #12090b 0%, #0f0b12 55%, #090c14 100%);
+}
+
+html.tet-theme ::selection { background: rgb(220 38 38 / .20); color: #7f1d1d; }
+html.dark.tet-theme ::selection { background: rgb(251 191 36 / .28); color: #fff7ed; }
+
+html.tet-theme .tet-app-shell { background: transparent; }
+html.tet-theme .tet-app-shell > main {
+  background-image:
+    linear-gradient(90deg, transparent 0%, rgb(245 158 11 / .025) 50%, transparent 100%),
+    repeating-linear-gradient(45deg, transparent 0 42px, rgb(220 38 38 / .018) 42px 43px);
+}
+html.dark.tet-theme .tet-app-shell > main {
+  background-image:
+    linear-gradient(90deg, transparent 0%, rgb(245 158 11 / .018) 50%, transparent 100%),
+    repeating-linear-gradient(45deg, transparent 0 42px, rgb(248 113 113 / .018) 42px 43px);
+}
+
+html.tet-theme .tet-site-header {
+  border-bottom-color: rgb(245 158 11 / .45);
+  background: rgb(255 251 235 / .94);
+  box-shadow: 0 8px 30px rgb(127 29 29 / .07);
+}
+html.dark.tet-theme .tet-site-header {
+  border-bottom-color: rgb(180 83 9 / .55);
+  background: rgb(23 10 13 / .94);
+  box-shadow: 0 8px 30px rgb(0 0 0 / .24);
+}
+
+html.tet-theme .tet-site-footer {
+  border-top-color: rgb(245 158 11 / .40);
+  background: linear-gradient(90deg, rgb(255 251 235 / .96), rgb(254 242 242 / .96), rgb(255 251 235 / .96));
+}
+html.dark.tet-theme .tet-site-footer {
+  border-top-color: rgb(120 53 15 / .65);
+  background: linear-gradient(90deg, rgb(22 11 13), rgb(30 11 15), rgb(22 11 13));
+}
+
+html.tet-theme .primary-button {
+  border: 1px solid rgb(252 211 77 / .85);
+  background: linear-gradient(135deg, #b91c1c 0%, #dc2626 58%, #d97706 100%);
+  color: white;
+  box-shadow: 0 10px 24px rgb(185 28 28 / .20);
+}
+html.tet-theme .primary-button:hover { filter: brightness(1.06); }
+html.dark.tet-theme .primary-button {
+  border-color: rgb(180 83 9 / .75);
+  background: linear-gradient(135deg, #7f1d1d, #991b1b 62%, #92400e);
+  box-shadow: none;
+}
+
+html.tet-theme .field-input:focus {
+  border-color: rgb(220 38 38);
+  box-shadow: 0 0 0 4px rgb(254 226 226 / .85);
+}
+html.dark.tet-theme .field-input:focus {
+  border-color: rgb(248 113 113);
+  box-shadow: 0 0 0 4px rgb(127 29 29 / .28);
+}
+
+html.tet-theme .modern-toast-progress {
+  background: linear-gradient(90deg, #b91c1c, #f59e0b) !important;
+}
+html.tet-theme .shadow-card {
+  box-shadow: 0 12px 32px rgb(127 29 29 / .065), 0 1px 0 rgb(245 158 11 / .10);
+}
+html.dark.tet-theme .shadow-card {
+  box-shadow: 0 16px 36px rgb(0 0 0 / .22), 0 1px 0 rgb(180 83 9 / .12);
+}
+
+.tet-top-banner {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  overflow: hidden;
+  border-bottom: 1px solid rgb(254 215 170 / .45);
+  background: linear-gradient(90deg, #991b1b 0%, #dc2626 48%, #b45309 100%);
+  padding: .35rem 1rem;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  text-align: center;
+}
+html.dark .tet-top-banner {
+  border-bottom-color: rgb(180 83 9 / .40);
+  background: linear-gradient(90deg, #450a0a, #7f1d1d 52%, #78350f);
+  color: #fef3c7;
+}
+.tet-banner-flower { filter: drop-shadow(0 2px 3px rgb(0 0 0 / .18)); }
+
+.tet-decor-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  overflow: hidden;
+}
+.tet-lantern {
+  position: absolute;
+  top: 118px;
+  display: none;
+  width: 54px;
+  height: 68px;
+  place-items: center;
+  border: 2px solid #f59e0b;
+  border-radius: 48% 48% 42% 42%;
+  background: linear-gradient(90deg, #991b1b, #ef4444 48%, #991b1b);
+  color: #fef3c7;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: 0 8px 24px rgb(127 29 29 / .25), inset 0 0 0 5px rgb(254 202 202 / .10);
+  transform-origin: top center;
+  animation: tetLanternSwing 4.6s ease-in-out infinite;
+}
+.tet-lantern::before {
+  content: "";
+  position: absolute;
+  top: -34px;
+  width: 2px;
+  height: 34px;
+  background: #d97706;
+}
+.tet-lantern::after {
+  content: "";
+  position: absolute;
+  bottom: -23px;
+  width: 2px;
+  height: 23px;
+  background: #d97706;
+  box-shadow: -5px 5px 0 -1px #d97706, 5px 5px 0 -1px #d97706;
+}
+.tet-lantern-left { left: 18px; }
+.tet-lantern-right { right: 18px; animation-delay: -1.4s; }
+
+.tet-floating-blossom {
+  position: absolute;
+  opacity: .26;
+  font-size: 22px;
+  filter: drop-shadow(0 3px 4px rgb(127 29 29 / .08));
+  animation: tetBlossomFloat 7s ease-in-out infinite;
+}
+html.dark .tet-floating-blossom { opacity: .18; }
+
+.tet-mascot-badge {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgb(245 158 11 / .48);
+  border-radius: 18px;
+  background: rgb(255 251 235 / .88);
+  padding: 9px 13px 9px 10px;
+  color: #991b1b;
+  box-shadow: 0 12px 30px rgb(127 29 29 / .12);
+  backdrop-filter: blur(12px);
+}
+html.dark .tet-mascot-badge {
+  border-color: rgb(180 83 9 / .55);
+  background: rgb(37 14 18 / .88);
+  color: #fecaca;
+  box-shadow: 0 12px 30px rgb(0 0 0 / .24);
+}
+.tet-mascot-emoji { font-size: 34px; line-height: 1; }
+.tet-mascot-copy { display: flex; flex-direction: column; font-size: 11px; font-weight: 800; }
+.tet-mascot-copy small { margin-top: 2px; color: #b45309; font-size: 10px; }
+html.dark .tet-mascot-copy small { color: #fbbf24; }
+
+@media (min-width: 1024px) {
+  .tet-lantern { display: grid; }
+}
+@media (min-width: 1280px) {
+  .tet-mascot-badge { display: flex; }
+}
+@media (max-width: 639px) {
+  .tet-top-banner { min-height: 28px; padding-inline: .6rem; font-size: 10px; }
+  .tet-floating-blossom { font-size: 16px; opacity: .16; }
+}
+
+@keyframes tetLanternSwing {
+  0%, 100% { transform: rotate(-2.5deg); }
+  50% { transform: rotate(2.5deg); }
+}
+@keyframes tetBlossomFloat {
+  0%, 100% { translate: 0 0; rotate: -4deg; }
+  50% { translate: 0 -14px; rotate: 6deg; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tet-lantern,
+  .tet-floating-blossom { animation: none !important; }
+}
