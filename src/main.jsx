@@ -12,6 +12,7 @@ import App from "./App";
 import { store } from "./store";
 import { ThemeProvider, useTheme } from "./ThemeContext";
 import { AuthProvider } from "./AuthContext";
+import { TetThemeProvider } from "./TetThemeContext";
 import { PageSettingsProvider } from "./PageSettingsContext";
 import "./index.css";
 
@@ -36,10 +37,12 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       <ThemeProvider>
         <BrowserRouter>
           <AuthProvider>
-            <PageSettingsProvider>
-              <App />
-              <AppToasts />
-            </PageSettingsProvider>
+            <TetThemeProvider>
+              <PageSettingsProvider>
+                <App />
+                <AppToasts />
+              </PageSettingsProvider>
+            </TetThemeProvider>
           </AuthProvider>
         </BrowserRouter>
       </ThemeProvider>

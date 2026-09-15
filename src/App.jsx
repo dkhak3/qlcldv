@@ -28,6 +28,7 @@ import TopDonateAdminPage from "./pages/TopDonateAdminPage";
 import SavedReportsPage from "./pages/SavedReportsPage";
 import SavedBlogPostsPage from "./pages/SavedBlogPostsPage";
 import PageSettingsAdminPage from "./pages/PageSettingsAdminPage";
+import TetThemeAdminPage from "./pages/TetThemeAdminPage";
 import ManagedPageResolver from "./pages/ManagedPageResolver";
 import ManagedPageGate from "./components/ManagedPageGate";
 import AuthorBlogPage from "./pages/AuthorBlogPage";
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="/admin/donate" element={<ProtectedRoute roles={["superadmin"]}><ManagedPageGate pageKey="donate-admin"><DonationAdminPage /></ManagedPageGate></ProtectedRoute>} />
         <Route path="/admin/top-donate" element={<ProtectedRoute roles={["admin", "superadmin"]}><ManagedPageGate pageKey="top-donate-admin"><TopDonateAdminPage /></ManagedPageGate></ProtectedRoute>} />
         <Route path="/admin/pages" element={<ProtectedRoute roles={["superadmin"]}><ManagedPageGate pageKey="page-admin"><PageSettingsAdminPage /></ManagedPageGate></ProtectedRoute>} />
+        <Route path="/admin/tet-theme" element={<ProtectedRoute roles={["superadmin"]}><TetThemeAdminPage /></ProtectedRoute>} />
         <Route path="/bao-cao/:slug" element={<ProtectedRoute><DynamicReportPage /></ProtectedRoute>} />
         <Route path="/:managedSlug" element={<ManagedPageResolver />} />
         <Route path="*" element={<ProtectedRoute><NotFoundPage /></ProtectedRoute>} />
