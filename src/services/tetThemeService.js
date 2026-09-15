@@ -17,6 +17,17 @@ function normalizeSettings(value = {}) {
   };
 }
 
+export async function getPublicTetThemeSettings() {
+  try {
+    const response = await fetch("/api/tet-theme", { headers: { Accept: "application/json" } });
+    const payload = await response.json();
+    if (!response.ok || !payload?.ok) throw new Error(payload?.error || "Không thể tải giao diện Tết");
+    return normalizeSettings(payload.settings);
+  } catch {
+    return DEFAULT_TET_THEME_SETTINGS;
+  }
+}
+
 export function subscribeTetThemeSettings(onValue, onError) {
   if (!firestore) {
     onValue(DEFAULT_TET_THEME_SETTINGS);
