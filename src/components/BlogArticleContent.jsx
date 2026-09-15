@@ -38,8 +38,52 @@ function LegacyArticleContent({ content }) {
   </div>;
 }
 
+function decorateCodeBlocks(html = "") {
+  return html
+    .replace(/<pre>/g, '<div class="group relative my-7"><button type="button" data-blog-code-copy aria-label="Copy code" class="absolute right-3 top-3 z-10 rounded-lg border border-white/15 bg-slate-800/90 px-2.5 py-1.5 text-[11px] font-bold text-slate-100 opacity-100 shadow-lg transition hover:bg-slate-700 focus:opacity-100 sm:opacity-0 sm:group-hover:opacity-100">Copy</button><pre class="!my-0">')
+    .replace(/<\/pre>/g, "</pre></div>");
+}
+
+async function copyCode(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
+}
+
 export default function BlogArticleContent({ content = "" }) {
   if (!isRichBlogContent(content)) return <LegacyArticleContent content={content}/>;
   const cleanHtml = sanitizeRichBlogHtml(getRichBlogHtml(content));
-  return <div className="text-[15px] leading-8 text-slate-600 dark:text-slate-300 sm:text-base [&_a]:font-bold [&_a]:text-blue-600 [&_a]:underline [&_a]:decoration-blue-300 [&_a]:underline-offset-4 dark:[&_a]:text-blue-300 [&_blockquote]:my-7 [&_blockquote]:rounded-r-2xl [&_blockquote]:border-l-4 [&_blockquote]:border-orange-300 [&_blockquote]:bg-orange-50/60 [&_blockquote]:px-5 [&_blockquote]:py-4 [&_blockquote]:italic dark:[&_blockquote]:border-orange-800 dark:[&_blockquote]:bg-orange-950/20 [&_h1]:mb-3 [&_h1]:mt-10 [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:leading-tight [&_h1]:tracking-tight [&_h1]:text-ink dark:[&_h1]:text-white [&_h2]:mb-3 [&_h2]:mt-9 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:tracking-tight [&_h2]:text-ink dark:[&_h2]:text-white [&_h3]:mb-3 [&_h3]:mt-8 [&_h3]:text-xl [&_h3]:font-bold [&_h3]:text-ink dark:[&_h3]:text-white [&_h4]:mb-2 [&_h4]:mt-7 [&_h4]:text-lg [&_h4]:font-bold [&_h4]:text-ink dark:[&_h4]:text-white [&_h5]:mb-2 [&_h5]:mt-6 [&_h5]:font-bold [&_h5]:text-ink dark:[&_h5]:text-white [&_h6]:mb-2 [&_h6]:mt-6 [&_h6]:text-sm [&_h6]:font-bold [&_h6]:uppercase [&_h6]:tracking-wide [&_h6]:text-ink dark:[&_h6]:text-white [&_iframe]:my-8 [&_iframe]:aspect-video [&_iframe]:w-full [&_iframe]:rounded-2xl [&_iframe]:border [&_iframe]:border-slate-200 [&_iframe]:bg-slate-950 dark:[&_iframe]:border-slate-700 [&_img]:my-8 [&_img]:max-h-[680px] [&_img]:w-full [&_img]:rounded-2xl [&_img]:border [&_img]:border-slate-200 [&_img]:bg-slate-50 [&_img]:object-contain [&_img]:shadow-card dark:[&_img]:border-slate-700 dark:[&_img]:bg-slate-950/60 [&_li]:my-2 [&_li]:pl-1 [&_ol]:my-5 [&_ol]:list-decimal [&_ol]:pl-7 [&_p]:my-5 [&_pre]:my-7 [&_pre]:overflow-x-auto [&_pre]:rounded-2xl [&_pre]:bg-slate-950 [&_pre]:p-5 [&_pre]:font-mono [&_pre]:text-sm [&_pre]:leading-6 [&_pre]:text-slate-100 [&_ul]:my-5 [&_ul]:list-disc [&_ul]:pl-7" dangerouslySetInnerHTML={{ __html: cleanHtml }}/>;
+  const renderedHtml = decorateCodeBlocks(cleanHtml);
+
+  const handleClick = async event => {
+    const button = event.target.closest?.("[data-blog-code-copy]");
+    if (!button) return;
+    const pre = button.parentElement?.querySelector("pre");
+    if (!pre) return;
+    const originalLabel = button.textContent;
+    try {
+      await copyCode(pre.innerText || pre.textContent || "");
+      button.textContent = "Đã copy";
+      window.setTimeout(() => {
+        if (button.isConnected) button.textContent = originalLabel || "Copy";
+      }, 1500);
+    } catch {
+      button.textContent = "Không thể copy";
+      window.setTimeout(() => {
+        if (button.isConnected) button.textContent = originalLabel || "Copy";
+      }, 1800);
+    }
+  };
+
+  return <div onClick={handleClick} className="text-[15px] leading-8 text-slate-600 dark:text-slate-300 sm:text-base [&_a]:font-bold [&_a]:text-blue-600 [&_a]:underline [&_a]:decoration-blue-300 [&_a]:underline-offset-4 dark:[&_a]:text-blue-300 [&_blockquote]:my-7 [&_blockquote]:rounded-r-2xl [&_blockquote]:border-l-4 [&_blockquote]:border-orange-300 [&_blockquote]:bg-orange-50/60 [&_blockquote]:px-5 [&_blockquote]:py-4 [&_blockquote]:italic dark:[&_blockquote]:border-orange-800 dark:[&_blockquote]:bg-orange-950/20 [&_h1]:mb-3 [&_h1]:mt-10 [&_h1]:break-words [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:leading-[1.3] [&_h1]:tracking-tight [&_h1]:text-ink dark:[&_h1]:text-white [&_h2]:mb-3 [&_h2]:mt-9 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:tracking-tight [&_h2]:text-ink dark:[&_h2]:text-white [&_h3]:mb-3 [&_h3]:mt-8 [&_h3]:text-xl [&_h3]:font-bold [&_h3]:text-ink dark:[&_h3]:text-white [&_h4]:mb-2 [&_h4]:mt-7 [&_h4]:text-lg [&_h4]:font-bold [&_h4]:text-ink dark:[&_h4]:text-white [&_h5]:mb-2 [&_h5]:mt-6 [&_h5]:font-bold [&_h5]:text-ink dark:[&_h5]:text-white [&_h6]:mb-2 [&_h6]:mt-6 [&_h6]:text-sm [&_h6]:font-bold [&_h6]:uppercase [&_h6]:tracking-wide [&_h6]:text-ink dark:[&_h6]:text-white [&_iframe]:my-8 [&_iframe]:aspect-video [&_iframe]:w-full [&_iframe]:rounded-2xl [&_iframe]:border [&_iframe]:border-slate-200 [&_iframe]:bg-slate-950 dark:[&_iframe]:border-slate-700 [&_img]:my-8 [&_img]:max-h-[680px] [&_img]:w-full [&_img]:rounded-2xl [&_img]:border [&_img]:border-slate-200 [&_img]:bg-slate-50 [&_img]:object-contain [&_img]:shadow-card dark:[&_img]:border-slate-700 dark:[&_img]:bg-slate-950/60 [&_li]:my-2 [&_li]:pl-1 [&_ol]:my-5 [&_ol]:list-decimal [&_ol]:pl-7 [&_p]:my-5 [&_pre]:my-7 [&_pre]:overflow-x-auto [&_pre]:rounded-2xl [&_pre]:bg-slate-950 [&_pre]:p-5 [&_pre]:pr-24 [&_pre]:font-mono [&_pre]:text-sm [&_pre]:leading-6 [&_pre]:text-slate-100 [&_ul]:my-5 [&_ul]:list-disc [&_ul]:pl-7" dangerouslySetInnerHTML={{ __html: renderedHtml }}/>;
 }
