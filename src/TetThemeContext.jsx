@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useAuth } from "./AuthContext";
-import { DEFAULT_TET_THEME_SETTINGS, saveTetThemeSettings, subscribeTetThemeSettings } from "./services/tetThemeService";
+import { DEFAULT_TET_THEME_SETTINGS, getPublicTetThemeSettings, saveTetThemeSettings, subscribeTetThemeSettings } from "./services/tetThemeService";
 import { getCanChiYear, getVietnameseZodiac, normalizeTetYear } from "./utils/tet";
 
 const TetThemeContext = createContext(null);
@@ -22,22 +22,33 @@ function getCachedSettings() {
 export function TetThemeProvider({ children }) {
   const auth = useAuth();
   const [settings, setSettings] = useState(getCachedSettings);
-  const [loading, setLoading] = useState(Boolean(auth.user));
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
     if (!auth.user) {
-      setLoading(false);
-      return undefined;
+      setLoading(true);
+      getPublicTetThemeSettings().then(next => {
+        if (active) setSettings(next);
+      }).finally(() => {
+        if (active) setLoading(false);
+      });
+      return () => { active = false; };
     }
+
     setLoading(true);
     const unsubscribe = subscribeTetThemeSettings(
       next => {
+        if (!active) return;
         setSettings(next);
         setLoading(false);
       },
-      () => setLoading(false),
+      () => { if (active) setLoading(false); },
     );
-    return unsubscribe;
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, [auth.user?.uid]);
 
   useEffect(() => {
