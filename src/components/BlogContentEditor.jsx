@@ -81,6 +81,7 @@ export default function BlogContentEditor({ value = "", onChange }) {
   const fileRef = useRef(null);
   const savedRangeRef = useRef(null);
   const lastEmittedRef = useRef("");
+  const dirtyRef = useRef(false);
   const [uploading, setUploading] = useState(false);
   const [panel, setPanel] = useState("");
   const [linkLabel, setLinkLabel] = useState("");
@@ -96,6 +97,42 @@ export default function BlogContentEditor({ value = "", onChange }) {
     if (editorRef.current.innerHTML !== cleanHtml) editorRef.current.innerHTML = cleanHtml;
     setEmpty(!(editorRef.current.textContent || "").trim() && !/<(?:img|iframe)\b/i.test(cleanHtml));
   }, [value]);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    const form = editor?.closest("form");
+    if (!form) return undefined;
+
+    const markDirty = () => { dirtyRef.current = true; };
+    const beforeUnload = event => {
+      if (!dirtyRef.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    const confirmEditorClose = event => {
+      if (!dirtyRef.current) return;
+      const button = event.target.closest?.("button");
+      if (!button) return;
+      const isCloseButton = button.getAttribute("aria-label") === "Đóng" || button.textContent?.trim() === "Hủy";
+      if (!isCloseButton) return;
+      const confirmed = window.confirm("Bạn có thay đổi chưa được lưu. Bạn có chắc muốn thoát? Dữ liệu đã nhập sẽ bị mất.");
+      if (confirmed) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation?.();
+    };
+
+    form.addEventListener("input", markDirty);
+    form.addEventListener("change", markDirty);
+    form.addEventListener("click", confirmEditorClose, true);
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => {
+      form.removeEventListener("input", markDirty);
+      form.removeEventListener("change", markDirty);
+      form.removeEventListener("click", confirmEditorClose, true);
+      window.removeEventListener("beforeunload", beforeUnload);
+    };
+  }, []);
 
   const rememberSelection = () => {
     const selection = window.getSelection();
@@ -125,7 +162,9 @@ export default function BlogContentEditor({ value = "", onChange }) {
 
   const exec = (command, commandValue = null) => {
     editorRef.current?.focus();
+    const before = editorRef.current?.innerHTML;
     document.execCommand(command, false, commandValue);
+    if (editorRef.current?.innerHTML !== before) dirtyRef.current = true;
     rememberSelection();
     syncContent();
   };
@@ -157,6 +196,7 @@ export default function BlogContentEditor({ value = "", onChange }) {
 
   const applyUnorderedList = () => {
     const splitContext = captureOrderedListSplit();
+    const before = editorRef.current?.innerHTML;
     editorRef.current?.focus();
     document.execCommand("insertUnorderedList", false, null);
 
@@ -181,11 +221,13 @@ export default function BlogContentEditor({ value = "", onChange }) {
       }
     }
 
+    if (editorRef.current?.innerHTML !== before) dirtyRef.current = true;
     rememberSelection();
     syncContent();
   };
 
   const applyOrderedList = () => {
+    const before = editorRef.current?.innerHTML;
     editorRef.current?.focus();
     document.execCommand("insertOrderedList", false, null);
 
@@ -206,13 +248,16 @@ export default function BlogContentEditor({ value = "", onChange }) {
       }
     }
 
+    if (editorRef.current?.innerHTML !== before) dirtyRef.current = true;
     rememberSelection();
     syncContent();
   };
 
   const insertHtml = html => {
     restoreSelection();
+    const before = editorRef.current?.innerHTML;
     document.execCommand("insertHTML", false, html);
+    if (editorRef.current?.innerHTML !== before) dirtyRef.current = true;
     rememberSelection();
     syncContent();
   };
@@ -267,6 +312,7 @@ export default function BlogContentEditor({ value = "", onChange }) {
     event.preventDefault();
     const text = event.clipboardData.getData("text/plain");
     document.execCommand("insertText", false, text);
+    dirtyRef.current = true;
   };
 
   const changeFormat = event => {
@@ -338,7 +384,7 @@ export default function BlogContentEditor({ value = "", onChange }) {
           spellCheck
           role="textbox"
           aria-multiline="true"
-          className="min-h-72 w-full overflow-y-auto bg-transparent px-5 py-4 text-sm leading-7 text-slate-700 outline-none dark:text-slate-200 sm:text-[15px] [&_a]:font-semibold [&_a]:text-blue-600 [&_a]:underline dark:[&_a]:text-blue-300 [&_blockquote]:my-5 [&_blockquote]:border-l-4 [&_blockquote]:border-orange-300 [&_blockquote]:bg-orange-50/60 [&_blockquote]:px-4 [&_blockquote]:py-3 [&_blockquote]:italic dark:[&_blockquote]:border-orange-800 dark:[&_blockquote]:bg-orange-950/20 [&_h1]:my-5 [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:leading-tight [&_h2]:my-5 [&_h2]:text-2xl [&_h2]:font-bold [&_h3]:my-4 [&_h3]:text-xl [&_h3]:font-bold [&_h4]:my-4 [&_h4]:text-lg [&_h4]:font-bold [&_h5]:my-3 [&_h5]:text-base [&_h5]:font-bold [&_h6]:my-3 [&_h6]:text-sm [&_h6]:font-bold [&_img]:my-4 [&_img]:max-h-[520px] [&_img]:max-w-full [&_img]:rounded-xl [&_img]:object-contain [&_iframe]:my-4 [&_iframe]:aspect-video [&_iframe]:w-full [&_iframe]:rounded-xl [&_li]:ml-6 [&_ol]:my-4 [&_ol]:list-decimal [&_p]:my-3 [&_pre]:my-4 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:bg-slate-900 [&_pre]:p-4 [&_pre]:font-mono [&_pre]:text-sm [&_pre]:text-slate-100 [&_ul]:my-4 [&_ul]:list-disc"
+          className="min-h-72 w-full overflow-y-auto bg-transparent px-5 py-4 text-sm leading-7 text-slate-700 outline-none dark:text-slate-200 sm:text-[15px] [&_a]:font-semibold [&_a]:text-blue-600 [&_a]:underline dark:[&_a]:text-blue-300 [&_blockquote]:my-5 [&_blockquote]:border-l-4 [&_blockquote]:border-orange-300 [&_blockquote]:bg-orange-50/60 [&_blockquote]:px-4 [&_blockquote]:py-3 [&_blockquote]:italic dark:[&_blockquote]:border-orange-800 dark:[&_blockquote]:bg-orange-950/20 [&_h1]:my-5 [&_h1]:break-words [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:leading-[1.3] [&_h2]:my-5 [&_h2]:text-2xl [&_h2]:font-bold [&_h3]:my-4 [&_h3]:text-xl [&_h3]:font-bold [&_h4]:my-4 [&_h4]:text-lg [&_h4]:font-bold [&_h5]:my-3 [&_h5]:text-base [&_h5]:font-bold [&_h6]:my-3 [&_h6]:text-sm [&_h6]:font-bold [&_img]:my-4 [&_img]:max-h-[520px] [&_img]:max-w-full [&_img]:rounded-xl [&_img]:object-contain [&_iframe]:my-4 [&_iframe]:aspect-video [&_iframe]:w-full [&_iframe]:rounded-xl [&_li]:ml-6 [&_ol]:my-4 [&_ol]:list-decimal [&_p]:my-3 [&_pre]:my-4 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:bg-slate-900 [&_pre]:p-4 [&_pre]:font-mono [&_pre]:text-sm [&_pre]:text-slate-100 [&_ul]:my-4 [&_ul]:list-disc"
           onInput={syncContent}
           onBlur={() => { rememberSelection(); syncContent(); }}
           onKeyUp={rememberSelection}
