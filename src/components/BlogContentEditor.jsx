@@ -39,6 +39,24 @@ function escapeHtml(value = "") {
     .replace(/'/g, "&#039;");
 }
 
+function findAncestor(node, tagName, root) {
+  let current = node?.nodeType === 1 ? node : node?.parentElement;
+  while (current && current !== root) {
+    if (current.tagName === tagName) return current;
+    current = current.parentElement;
+  }
+  return null;
+}
+
+function directListItems(list) {
+  return list ? [...list.children].filter(child => child.tagName === "LI") : [];
+}
+
+function orderedListStart(list) {
+  const parsed = Number.parseInt(list?.getAttribute("start") || "1", 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
+}
+
 function ToolButton({ title, active = false, disabled = false, onMouseDown, children }) {
   return <button
     type="button"
@@ -108,6 +126,86 @@ export default function BlogContentEditor({ value = "", onChange }) {
   const exec = (command, commandValue = null) => {
     editorRef.current?.focus();
     document.execCommand(command, false, commandValue);
+    rememberSelection();
+    syncContent();
+  };
+
+  const captureOrderedListSplit = () => {
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+    if (!editor || !selection?.rangeCount || selection.isCollapsed) return null;
+
+    const range = selection.getRangeAt(0);
+    const startList = findAncestor(range.startContainer, "OL", editor);
+    const endList = findAncestor(range.endContainer, "OL", editor);
+    if (!startList || startList !== endList) return null;
+
+    const items = directListItems(startList);
+    const startItem = findAncestor(range.startContainer, "LI", startList);
+    const endItem = findAncestor(range.endContainer, "LI", startList);
+    const startIndex = items.indexOf(startItem);
+    const endIndex = items.indexOf(endItem);
+    if (startIndex < 0 || endIndex < 0) return null;
+
+    const firstSelectedIndex = Math.min(startIndex, endIndex);
+    const lastSelectedIndex = Math.max(startIndex, endIndex);
+    return {
+      nextItem: items[lastSelectedIndex + 1] || null,
+      continuationStart: orderedListStart(startList) + firstSelectedIndex,
+    };
+  };
+
+  const applyUnorderedList = () => {
+    const splitContext = captureOrderedListSplit();
+    editorRef.current?.focus();
+    document.execCommand("insertUnorderedList", false, null);
+
+    if (splitContext) {
+      let nextOrderedList = splitContext.nextItem
+        ? findAncestor(splitContext.nextItem, "OL", editorRef.current)
+        : null;
+
+      if (!nextOrderedList) {
+        const selection = window.getSelection();
+        const currentBulletList = findAncestor(selection?.anchorNode, "UL", editorRef.current);
+        const candidate = currentBulletList?.nextElementSibling;
+        if (candidate?.tagName === "OL") nextOrderedList = candidate;
+      }
+
+      if (nextOrderedList && editorRef.current?.contains(nextOrderedList)) {
+        if (splitContext.continuationStart > 1) {
+          nextOrderedList.setAttribute("start", String(splitContext.continuationStart));
+        } else {
+          nextOrderedList.removeAttribute("start");
+        }
+      }
+    }
+
+    rememberSelection();
+    syncContent();
+  };
+
+  const applyOrderedList = () => {
+    editorRef.current?.focus();
+    document.execCommand("insertOrderedList", false, null);
+
+    const selection = window.getSelection();
+    let currentList = findAncestor(selection?.anchorNode, "OL", editorRef.current);
+    if (currentList) {
+      const previous = currentList.previousElementSibling;
+      if (previous?.tagName === "OL") {
+        directListItems(currentList).forEach(item => previous.appendChild(item));
+        currentList.remove();
+        currentList = previous;
+      }
+
+      const next = currentList.nextElementSibling;
+      if (next?.tagName === "OL") {
+        directListItems(next).forEach(item => currentList.appendChild(item));
+        next.remove();
+      }
+    }
+
     rememberSelection();
     syncContent();
   };
@@ -191,8 +289,8 @@ export default function BlogContentEditor({ value = "", onChange }) {
         <ToolButton title="Tiêu đề H1" onMouseDown={() => { setFormat("h1"); exec("formatBlock", "h1"); }}><Heading1 size={18}/></ToolButton>
         <ToolButton title="Tiêu đề H2" onMouseDown={() => { setFormat("h2"); exec("formatBlock", "h2"); }}><Heading2 size={18}/></ToolButton>
         <Divider/>
-        <ToolButton title="Danh sách đánh số" onMouseDown={() => exec("insertOrderedList")}><ListOrdered size={18}/></ToolButton>
-        <ToolButton title="Danh sách dấu chấm" onMouseDown={() => exec("insertUnorderedList")}><List size={18}/></ToolButton>
+        <ToolButton title="Danh sách đánh số" onMouseDown={applyOrderedList}><ListOrdered size={18}/></ToolButton>
+        <ToolButton title="Danh sách dấu chấm" onMouseDown={applyUnorderedList}><List size={18}/></ToolButton>
         <Divider/>
         <select
           aria-label="Kiểu đoạn văn"
