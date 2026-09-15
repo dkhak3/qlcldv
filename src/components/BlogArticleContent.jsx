@@ -1,14 +1,6 @@
 import { ImageOff, Link2 } from "lucide-react";
 import { useState } from "react";
-
-function safeWebUrl(value) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : "";
-  } catch {
-    return "";
-  }
-}
+import { getRichBlogHtml, isRichBlogContent, safeWebUrl, sanitizeRichBlogHtml } from "../utils/blogContent";
 
 function InlineContent({ text }) {
   const parts = [];
@@ -31,7 +23,7 @@ function ContentImage({ url, alt }) {
   return <figure className="my-8 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-card dark:border-slate-700 dark:bg-slate-950/60"><div className="grid max-h-[680px] min-h-48 place-items-center overflow-hidden"><img src={url} alt={alt || "Ảnh trong bài viết"} onError={() => setFailed(true)} className="max-h-[680px] w-full object-contain" loading="lazy" decoding="async"/></div>{alt && <figcaption className="border-t border-slate-200 px-4 py-3 text-center text-xs italic text-slate-500 dark:border-slate-800 dark:text-slate-400">{alt}</figcaption>}</figure>;
 }
 
-export default function BlogArticleContent({ content = "" }) {
+function LegacyArticleContent({ content }) {
   const lines = content.split("\n");
   return <div className="space-y-5 text-[15px] leading-8 text-slate-600 dark:text-slate-300 sm:text-base">
     {lines.map((rawLine, index) => {
@@ -44,4 +36,10 @@ export default function BlogArticleContent({ content = "" }) {
       return <p key={index}><InlineContent text={line}/></p>;
     })}
   </div>;
+}
+
+export default function BlogArticleContent({ content = "" }) {
+  if (!isRichBlogContent(content)) return <LegacyArticleContent content={content}/>;
+  const cleanHtml = sanitizeRichBlogHtml(getRichBlogHtml(content));
+  return <div className="text-[15px] leading-8 text-slate-600 dark:text-slate-300 sm:text-base [&_a]:font-bold [&_a]:text-blue-600 [&_a]:underline [&_a]:decoration-blue-300 [&_a]:underline-offset-4 dark:[&_a]:text-blue-300 [&_blockquote]:my-7 [&_blockquote]:rounded-r-2xl [&_blockquote]:border-l-4 [&_blockquote]:border-orange-300 [&_blockquote]:bg-orange-50/60 [&_blockquote]:px-5 [&_blockquote]:py-4 [&_blockquote]:italic dark:[&_blockquote]:border-orange-800 dark:[&_blockquote]:bg-orange-950/20 [&_h1]:mb-3 [&_h1]:mt-10 [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:leading-tight [&_h1]:tracking-tight [&_h1]:text-ink dark:[&_h1]:text-white [&_h2]:mb-3 [&_h2]:mt-9 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:tracking-tight [&_h2]:text-ink dark:[&_h2]:text-white [&_h3]:mb-3 [&_h3]:mt-8 [&_h3]:text-xl [&_h3]:font-bold [&_h3]:text-ink dark:[&_h3]:text-white [&_h4]:mb-2 [&_h4]:mt-7 [&_h4]:text-lg [&_h4]:font-bold [&_h4]:text-ink dark:[&_h4]:text-white [&_h5]:mb-2 [&_h5]:mt-6 [&_h5]:font-bold [&_h5]:text-ink dark:[&_h5]:text-white [&_h6]:mb-2 [&_h6]:mt-6 [&_h6]:text-sm [&_h6]:font-bold [&_h6]:uppercase [&_h6]:tracking-wide [&_h6]:text-ink dark:[&_h6]:text-white [&_iframe]:my-8 [&_iframe]:aspect-video [&_iframe]:w-full [&_iframe]:rounded-2xl [&_iframe]:border [&_iframe]:border-slate-200 [&_iframe]:bg-slate-950 dark:[&_iframe]:border-slate-700 [&_img]:my-8 [&_img]:max-h-[680px] [&_img]:w-full [&_img]:rounded-2xl [&_img]:border [&_img]:border-slate-200 [&_img]:bg-slate-50 [&_img]:object-contain [&_img]:shadow-card dark:[&_img]:border-slate-700 dark:[&_img]:bg-slate-950/60 [&_li]:my-2 [&_li]:pl-1 [&_ol]:my-5 [&_ol]:list-decimal [&_ol]:pl-7 [&_p]:my-5 [&_pre]:my-7 [&_pre]:overflow-x-auto [&_pre]:rounded-2xl [&_pre]:bg-slate-950 [&_pre]:p-5 [&_pre]:font-mono [&_pre]:text-sm [&_pre]:leading-6 [&_pre]:text-slate-100 [&_ul]:my-5 [&_ul]:list-disc [&_ul]:pl-7" dangerouslySetInnerHTML={{ __html: cleanHtml }}/>;
 }
