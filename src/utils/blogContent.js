@@ -148,6 +148,12 @@ function sanitizeNode(node, targetDoc) {
   }
 
   const clean = targetDoc.createElement(tag);
+  if (tag === "ol") {
+    const start = Number.parseInt(node.getAttribute("start") || "", 10);
+    if (Number.isInteger(start) && start > 0 && start <= 100000) {
+      clean.setAttribute("start", String(start));
+    }
+  }
   if (tag === "a") {
     const href = safeWebUrl(node.getAttribute("href"));
     if (!href) {
