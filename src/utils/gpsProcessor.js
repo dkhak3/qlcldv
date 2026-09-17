@@ -2,12 +2,18 @@ import ExcelJS from "exceljs";
 import { normalizeText } from "./cameraProcessor.js";
 
 const MAIN_GROUPS = [
-  { key: "BA", title: "1. BÌNH ANH", sheets: ["SỔ THEO DÕI BA", "SỔ THEO DÕI 16 TUYẾN HCM"] },
-  { key: "BA35", title: "2. BÌNH ANH 35 TUYẾN", sheets: ["SỔ THEO DÕI 35 TUYẾN"] },
-  { key: "VIETMAP", title: "3. VIETMAP", sheets: ["SỔ THEO DÕI VIETMAP"] },
+  {
+    key: "BA",
+    title: "1. BÌNH ANH",
+    sheets: ["SỔ THEO DÕI BA"],
+    // Tương thích file cũ: trước đây dữ liệu Bình Anh còn tách riêng 16/35 tuyến.
+    // File mới đã gộp toàn bộ vào SỔ THEO DÕI BA nên hai sheet này chỉ đọc khi có.
+    legacySheets: ["SỔ THEO DÕI 16 TUYẾN HCM", "SỔ THEO DÕI 35 TUYẾN"],
+  },
+  { key: "VIETMAP", title: "2. VIETMAP", sheets: ["SỔ THEO DÕI VIETMAP"] },
 ];
 
-const TONGDA_GROUP = { key: "TONGDA", title: "4. TONGDA", sheets: ["Sổ theo dõi GPS"] };
+const TONGDA_GROUP = { key: "TONGDA", title: "3. TONGDA", sheets: ["Sổ theo dõi GPS"] };
 
 function scalarValue(value) {
   if (value?.result !== undefined) return value.result;
@@ -90,11 +96,8 @@ export function resolveGpsVehicleStates(records, endDate, hasEndSnapshot) {
   const processed = new Set(records.filter(record => record.state === "processed").map(record => record.vehicle));
   const unprocessed = new Set(records.filter(record => record.state === "unprocessed").map(record => record.vehicle));
 
-  // Xe đã được xử lý trong khoảng chọn được loại khỏi danh sách chưa xử lý.
   processed.forEach(vehicle => unprocessed.delete(vehicle));
 
-  // Ảnh chụp ngày kết thúc có quyền ưu tiên: xe vẫn chưa xử lý phải quay lại
-  // danh sách chưa xử lý và đồng thời bị xóa khỏi danh sách đã xử lý.
   if (hasEndSnapshot) {
     records
       .filter(record => record.headerDate === endDate && record.state === "unprocessed")
@@ -149,15 +152,21 @@ async function processGroups(workbook, groups, startDate, endDate, fileLabel) {
   for (const group of groups) {
     const records = [];
     const datesSeen = new Set();
-    for (const sheetName of group.sheets) {
-      const parsed = readSheet(findWorksheet(workbook, sheetName), startDate, endDate);
+    const sheetNames = [
+      ...group.sheets,
+      ...(group.legacySheets || []).filter(name => findWorksheet(workbook, name)),
+    ];
+
+    for (const sheetName of sheetNames) {
+      const worksheet = findWorksheet(workbook, sheetName);
+      const parsed = readSheet(worksheet, startDate, endDate);
       if (!parsed.hasDateHeader || !parsed.hasColumnHeader) {
         throw new Error(`${fileLabel}: cấu trúc không hợp lệ tại sheet “${sheetName}”. Cần có tiêu đề ngày và các cột C CHI NHÁNH, E SỐ XE, G ĐÃ XỬ LÝ, H CHƯA XỬ LÝ`);
       }
       records.push(...parsed.records);
       parsed.datesSeen.forEach(date => datesSeen.add(date));
     }
-    results.push({ ...group, rows: summarize(records, endDate, datesSeen.has(endDate)) });
+    results.push({ key: group.key, title: group.title, rows: summarize(records, endDate, datesSeen.has(endDate)) });
   }
   return results;
 }
