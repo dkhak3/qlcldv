@@ -97,9 +97,11 @@ export async function buildGpsReportWorkbook(templateBuffer, { results, startDat
 }
 
 export async function exportGpsReport({ results, startDate, endDate, employees }) {
-  const response = await fetch("/templates/CITYBUS-BAO-CAO-GPS-BP-QLCL-DV.xlsx");
+  const response = await fetch("/templates/CITYBUS-BAO-CAO-GPS-BP-QLCL-DV.xlsx?v=20260917-2", { cache: "no-store" });
   if (!response.ok) throw new Error("Không tải được file mẫu báo cáo GPS");
-  const workbook = await buildGpsReportWorkbook(await response.arrayBuffer(), { results, startDate, endDate, employees });
+  const templateBuffer = await response.arrayBuffer();
+  if (templateBuffer.byteLength < 10000) throw new Error("File mẫu báo cáo GPS không hợp lệ. Vui lòng tải lại trang rồi thử lại");
+  const workbook = await buildGpsReportWorkbook(templateBuffer, { results, startDate, endDate, employees });
   const buffer = await workbook.xlsx.writeBuffer();
   const fileName = "CITYBUS - BÁO CÁO ĐỊNH VỊ BP.QLCL-DV.xlsx";
   saveAs(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), fileName);
