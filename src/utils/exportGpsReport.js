@@ -6,9 +6,8 @@ import { applyStandardReportHeader } from "./reportHeader.js";
 const { saveAs } = FileSaver;
 const SECTION_TITLES = {
   BA: "1. BINH ANH",
-  BA35: "2. BINH ANH 35 TUYEN",
-  VIETMAP: "3. VIETMAP",
-  TONGDA: "4. TONGDA",
+  VIETMAP: "2. VIETMAP",
+  TONGDA: "3. TONGDA",
 };
 
 function findSection(sheet, title) {
@@ -42,6 +41,7 @@ function prepareDynamicRows(sheet, results) {
   const originalMerges = [...sheet.model.merges];
   originalMerges.forEach(range => sheet.unMergeCells(range));
   const plans = results
+    .filter(group => SECTION_TITLES[group.key])
     .map(group => ({ group, section: findSection(sheet, SECTION_TITLES[group.key]) }))
     .sort((a, b) => b.section.dataStart - a.section.dataStart);
   const insertions = [];
