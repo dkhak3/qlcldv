@@ -52,7 +52,7 @@ export default function Layout({ children }) {
         </nav>
       </div>
     </header>
-    <main className="relative z-[1] flex-1">{children}</main>
-    <footer className="tet-site-footer relative z-[1] border-t border-slate-200 bg-white transition-colors dark:border-slate-800 dark:bg-slate-900"><div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 py-6 text-center text-xs text-slate-500 dark:text-slate-400 sm:flex-row sm:px-6 lg:px-8"><span>© {new Date().getFullYear()} Hệ thống báo cáo QLCL-DV</span><span>{tet.enabled && <span className="mr-3 text-red-600 dark:text-red-300">🌸 Tết {tet.year} · {tet.canChi}</span>}Phát triển bởi <b className="font-semibold text-slate-700 dark:text-slate-200">Nguyễn Hữu Duy Kha</b></span></div></footer>
+    <main className="relative flex-1">{children}</main>
+    <footer className="tet-site-footer relative border-t border-slate-200 bg-white transition-colors dark:border-slate-800 dark:bg-slate-900"><div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 py-6 text-center text-xs text-slate-500 dark:text-slate-400 sm:flex-row sm:px-6 lg:px-8"><span>© {new Date().getFullYear()} Hệ thống báo cáo QLCL-DV</span><span>{tet.enabled && <span className="mr-3 text-red-600 dark:text-red-300">🌸 Tết {tet.year} · {tet.canChi}</span>}Phát triển bởi <b className="font-semibold text-slate-700 dark:text-slate-200">Nguyễn Hữu Duy Kha</b></span></div></footer>
   </div>;
 }
