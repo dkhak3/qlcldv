@@ -2,12 +2,28 @@ import ExcelJS from "exceljs";
 import { normalizeText } from "./cameraProcessor.js";
 
 const MAIN_GROUPS = [
-  { key: "BA", title: "1. BÌNH ANH", sheets: ["SỔ THEO DÕI BA", "SỔ THEO DÕI 16 TUYẾN HCM"] },
-  { key: "BA35", title: "2. BÌNH ANH 35 TUYẾN", sheets: ["SỔ THEO DÕI 35 TUYẾN"] },
-  { key: "VIETMAP", title: "3. VIETMAP", sheets: ["SỔ THEO DÕI VIETMAP"] },
+  {
+    key: "BA",
+    title: "1. BÌNH ANH",
+    requiredSheets: ["SỔ THEO DÕI BA"],
+    // Hỗ trợ ngược file cấu trúc cũ. Khi file mới chỉ còn SỔ THEO DÕI BA,
+    // hai sheet cũ không bắt buộc và dữ liệu đã được gộp trực tiếp trong BA.
+    optionalSheets: ["SỔ THEO DÕI 16 TUYẾN HCM", "SỔ THEO DÕI 35 TUYẾN"],
+  },
+  {
+    key: "VIETMAP",
+    title: "2. VIETMAP",
+    requiredSheets: ["SỔ THEO DÕI VIETMAP"],
+    optionalSheets: [],
+  },
 ];
 
-const TONGDA_GROUP = { key: "TONGDA", title: "4. TONGDA", sheets: ["Sổ theo dõi GPS"] };
+const TONGDA_GROUP = {
+  key: "TONGDA",
+  title: "3. TONGDA",
+  requiredSheets: ["Sổ theo dõi GPS"],
+  optionalSheets: [],
+};
 
 function scalarValue(value) {
   if (value?.result !== undefined) return value.result;
@@ -141,23 +157,41 @@ async function loadWorkbook(file, fileLabel) {
   return workbook;
 }
 
-async function processGroups(workbook, groups, startDate, endDate, fileLabel) {
-  const missingSheets = groups.flatMap(group => group.sheets).filter(name => !findWorksheet(workbook, name));
-  if (missingSheets.length) throw new Error(`${fileLabel}: cấu trúc không hợp lệ. Thiếu sheet: ${missingSheets.join(", ")}`);
+function resolveGroupSheets(workbook, group, fileLabel) {
+  const requiredSheets = group.requiredSheets || group.sheets || [];
+  const optionalSheets = group.optionalSheets || [];
+  const missingSheets = requiredSheets.filter(name => !findWorksheet(workbook, name));
+  if (missingSheets.length) {
+    throw new Error(`${fileLabel}: cấu trúc không hợp lệ. Thiếu sheet: ${missingSheets.join(", ")}`);
+  }
+  return [
+    ...requiredSheets,
+    ...optionalSheets.filter(name => Boolean(findWorksheet(workbook, name))),
+  ];
+}
 
+async function processGroups(workbook, groups, startDate, endDate, fileLabel) {
   const results = [];
   for (const group of groups) {
     const records = [];
     const datesSeen = new Set();
-    for (const sheetName of group.sheets) {
-      const parsed = readSheet(findWorksheet(workbook, sheetName), startDate, endDate);
+    const sheetNames = resolveGroupSheets(workbook, group, fileLabel);
+
+    for (const sheetName of sheetNames) {
+      const worksheet = findWorksheet(workbook, sheetName);
+      const parsed = readSheet(worksheet, startDate, endDate);
       if (!parsed.hasDateHeader || !parsed.hasColumnHeader) {
         throw new Error(`${fileLabel}: cấu trúc không hợp lệ tại sheet “${sheetName}”. Cần có tiêu đề ngày và các cột C CHI NHÁNH, E SỐ XE, G ĐÃ XỬ LÝ, H CHƯA XỬ LÝ`);
       }
       records.push(...parsed.records);
       parsed.datesSeen.forEach(date => datesSeen.add(date));
     }
-    results.push({ ...group, rows: summarize(records, endDate, datesSeen.has(endDate)) });
+
+    results.push({
+      key: group.key,
+      title: group.title,
+      rows: summarize(records, endDate, datesSeen.has(endDate)),
+    });
   }
   return results;
 }
@@ -170,4 +204,4 @@ export async function processGpsFiles(mainFile, tongdaFile, startDate, endDate) 
   return [...mainResults, ...tongdaResults];
 }
 
-export const __test__ = { readSheet, isMarked };
+export const __test__ = { readSheet, isMarked, resolveGroupSheets };
