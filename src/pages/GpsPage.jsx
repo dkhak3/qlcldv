@@ -56,7 +56,7 @@ export default function GpsPage() {
     setLoading(true);
     try {
       await exportGpsReport(form);
-      toast.success("Báo cáo GPS đã được tạo theo đúng biểu mẫu");
+      toast.success("Báo cáo GPS đã được tạo theo đúng biểu mẫu mới");
     } catch (error) { toast.error(error.message || "Không thể xuất báo cáo GPS"); }
     finally { setLoading(false); }
   };
@@ -78,7 +78,7 @@ export default function GpsPage() {
           <label className="field-label"><UploadCloud size={17}/> File 1 — QLCL - TỔNG HỢP BÁO CÁO SỬA CHỮA ĐỊNH VỊ</label>
           <label className="report-file-dropzone report-file-blue flex min-h-24 cursor-pointer items-center gap-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 transition">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-blue-600 shadow-sm"><UploadCloud size={22}/></span>
-            <span className="min-w-0 flex-1"><b className="block truncate text-sm font-semibold text-slate-700">{form.file ? form.file.name : "Chọn file GPS chính"}</b><small className="mt-1 block text-xs text-slate-400">Dùng các sheet VIETMAP, BÌNH ANH, 16 TUYẾN HCM và 35 TUYẾN</small></span>
+            <span className="min-w-0 flex-1"><b className="block truncate text-sm font-semibold text-slate-700">{form.file ? form.file.name : "Chọn file GPS chính"}</b><small className="mt-1 block text-xs text-slate-400">Cấu trúc mới: SỔ THEO DÕI BA và SỔ THEO DÕI VIETMAP</small></span>
             {form.file && <CircleCheckBig className="shrink-0 text-emerald-500" size={21}/>}<input className="sr-only" type="file" accept=".xlsx" onChange={event => chooseFile(event, setGpsFile, "File GPS chính")}/>
           </label>
         </div>
@@ -102,7 +102,7 @@ export default function GpsPage() {
     </div>
 
     <div className="mt-7 rounded-2xl border border-slate-200 bg-white p-5 shadow-card sm:p-6">
-      <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><h2 className="text-lg font-bold text-ink">Kết quả tổng hợp GPS</h2><p className="mt-1 text-xs leading-5 text-slate-500">Xe được xóa trùng theo chi nhánh; trạng thái Chưa xử lý của ngày kết thúc được ưu tiên chốt kỳ.</p></div>{hasData && <div className="flex flex-wrap gap-2"><button className="secondary-button !h-10" disabled={loading} onClick={() => navigate("/bao-cao-gps/chi-tiet")}><Eye size={17}/>Xem chi tiết</button><button className="secondary-button !h-10" disabled={loading} onClick={download}><Download size={17}/>Tải Excel</button></div>}</div>
+      <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div className="min-w-0 max-w-3xl"><h2 className="text-lg font-bold text-ink">Kết quả tổng hợp GPS</h2><p className="mt-1 text-xs leading-5 text-slate-500">BÌNH ANH được tổng hợp từ SỔ THEO DÕI BA; VIETMAP giữ nguyên. Xe được xóa trùng theo chi nhánh và trạng thái Chưa xử lý của ngày kết thúc được ưu tiên chốt kỳ.</p></div>{hasData && <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center"><button className="secondary-button !h-10 !w-full whitespace-nowrap sm:!w-auto" disabled={loading} onClick={() => navigate("/bao-cao-gps/chi-tiet")}><Eye size={17}/>Xem chi tiết</button><button className="primary-button !h-10 !w-full whitespace-nowrap sm:!w-auto sm:px-5" disabled={loading} onClick={download}><Download size={17}/>Tải Excel</button></div>}</div>
 
       {loading && !form.processed ? <div className="flex min-h-64 flex-col items-center justify-center rounded-2xl bg-slate-50 text-slate-500"><LoaderCircle className="animate-spin text-blue-600" size={34}/><span className="mt-4 text-sm font-semibold">Đang phân tích dữ liệu GPS...</span></div> : !hasData ? <NoData searched={form.processed}/> : form.results.map(group => {
         const sum = totals(group.rows);
