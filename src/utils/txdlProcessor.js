@@ -234,6 +234,15 @@ export async function processTxdlFile(file, startDate, endDate) {
     sheet2Map.set(stt, row);
   });
 
+  const lookupRows = filtered.map(source => ({
+    jobStt: source.STT,
+    receivedDate: dateToDisplay(source.NGAY_TIEP_NHAN),
+    dvkhEmployee: cleanText(source.TEN_NHAN_VIEN_DVKH),
+    responseDate: dateToDisplay(source.NGAY_PHAN_HOI),
+    qlclEmployee: cleanText(source.TEN_NHAN_VIEN_QLCL),
+    content: cleanText(source.NOI_DUNG_TIEP_NHAN_PHAN_ANH),
+  }));
+
   const rows = [];
   const removedRows = [];
   let totalViolation = 0;
@@ -276,6 +285,7 @@ export async function processTxdlFile(file, startDate, endDate) {
 
   rows.sort((a, b) => Number(a.jobStt) - Number(b.jobStt));
   return {
+    lookupRows,
     rows: rows.map((row, index) => ({ ...row, stt: index + 1 })),
     removedRows,
     totalBeforeFilter: sheet1Rows.length,
