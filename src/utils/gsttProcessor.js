@@ -171,13 +171,97 @@ async function loadWorkbook(file) {
   return workbook;
 }
 
-export async function processGsttFile(file, startDate, endDate) {
-  const workbook = await loadWorkbook(file);
+const GSTT_COLUMN_LABELS = {
+  date: "THỜI GIAN YC HỖ TRỢ",
+  vehicle: "SỐ XE",
+  route: "TUYẾN",
+  status: "TRẠNG THÁI",
+  feedback: "PHẢN HỒI CỦA ĐỐI TÁC BÌNH ANH",
+};
+
+function collectMonthSheets(workbook) {
   const sheetsByMonth = new Map();
   workbook.worksheets.forEach(sheet => {
     const key = monthKeyFromSheetName(sheet.name);
     if (key && !sheetsByMonth.has(key)) sheetsByMonth.set(key, sheet);
   });
+  return sheetsByMonth;
+}
+
+export async function inspectGsttFileForRange(file, startDate = "", endDate = "") {
+  const workbook = await loadWorkbook(file);
+  const sheetsByMonth = collectMonthSheets(workbook);
+  const availableSheets = [...sheetsByMonth.values()].map(sheet => sheet.name);
+
+  if (!availableSheets.length) {
+    return {
+      valid: false,
+      severity: "warning",
+      message: "Chưa tìm thấy sheet tháng trong file nguồn GSTT.",
+      detail: "Sheet tháng có thể ở dạng 09.2026, 09/2026 hoặc 092026 sau khi tải từ Google Sheets.",
+      matchedSheets: [],
+    };
+  }
+
+  if (!startDate || !endDate || startDate > endDate) {
+    return {
+      valid: true,
+      pendingRange: true,
+      message: "Đã đọc được file nguồn GSTT.",
+      detail: "Chọn Từ ngày và Đến ngày để hệ thống kiểm tra đúng sheet tháng cần dùng.",
+      matchedSheets: availableSheets,
+    };
+  }
+
+  const monthKeys = selectedMonthKeys(startDate, endDate);
+  const missingMonths = monthKeys.filter(key => !sheetsByMonth.has(key));
+  if (missingMonths.length) {
+    return {
+      valid: false,
+      severity: "warning",
+      message: `Chưa tìm thấy sheet tháng: ${missingMonths.map(key => `${key.slice(0, 2)}/${key.slice(2)}`).join(", ")}.`,
+      detail: "File chưa bị kết luận là sai cấu trúc; hãy kiểm tra khoảng ngày hoặc tên sheet tháng trong file nguồn.",
+      matchedSheets: monthKeys.filter(key => sheetsByMonth.has(key)).map(key => sheetsByMonth.get(key).name),
+    };
+  }
+
+  const missingHeaders = [];
+  monthKeys.forEach(key => {
+    const sheet = sheetsByMonth.get(key);
+    const layout = findColumns(sheet);
+    if (!layout) {
+      missingHeaders.push({ sheetName: sheet.name, headers: Object.values(GSTT_COLUMN_LABELS) });
+      return;
+    }
+    if (layout.missing.length) {
+      missingHeaders.push({
+        sheetName: sheet.name,
+        headers: layout.missing.map(item => GSTT_COLUMN_LABELS[item] || item),
+      });
+    }
+  });
+
+  if (missingHeaders.length) {
+    return {
+      valid: false,
+      severity: "error",
+      message: "Sheet tháng đã chọn chưa đủ các cột dữ liệu GSTT.",
+      detail: missingHeaders.map(item => `${item.sheetName}: thiếu ${item.headers.join(", ")}`).join("; "),
+      matchedSheets: monthKeys.map(key => sheetsByMonth.get(key).name),
+    };
+  }
+
+  return {
+    valid: true,
+    message: "File nguồn GSTT phù hợp với khoảng ngày đã chọn.",
+    detail: "Hệ thống sẽ chỉ đọc các sheet tháng bên dưới và lọc dữ liệu theo Từ ngày / Đến ngày.",
+    matchedSheets: monthKeys.map(key => sheetsByMonth.get(key).name),
+  };
+}
+
+export async function processGsttFile(file, startDate, endDate) {
+  const workbook = await loadWorkbook(file);
+  const sheetsByMonth = collectMonthSheets(workbook);
 
   const monthKeys = selectedMonthKeys(startDate, endDate);
   const missingMonths = monthKeys.filter(key => !sheetsByMonth.has(key));

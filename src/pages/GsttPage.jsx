@@ -113,15 +113,19 @@ export default function GsttPage() {
       <ManagedGuideVideo reportKey="gstt" description="Cách chuẩn bị file và xuất báo cáo Hỗ trợ GSTT"/>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card sm:p-6">
-        <div className="flex items-start gap-3 border-b border-slate-100 pb-5"><span className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-50 text-cyan-600"><FileSpreadsheet size={20}/></span><div><h2 className="font-bold text-ink">Dữ liệu báo cáo Hỗ trợ GSTT</h2><p className="mt-1 text-xs text-slate-500">Tất cả trường bên dưới đều bắt buộc</p></div></div>
+        <div className="flex items-start gap-3 border-b border-slate-100 pb-5"><span className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-50 text-cyan-600"><FileSpreadsheet size={20}/></span><div><h2 className="font-bold text-ink">Dữ liệu báo cáo Hỗ trợ GSTT</h2><p className="mt-1 text-xs text-slate-500">File nguồn nhiều sheet theo tháng; file mẫu báo cáo được hệ thống tự nạp khi xuất Excel.</p></div></div>
         <div className="mt-6">
-          <label className="field-label"><UploadCloud size={17}/> QLCL - HỖ TRỢ GSTT (Buýt trợ giá HCM)</label>
+          <label className="field-label"><UploadCloud size={17}/> File 1 — QLCL - HỖ TRỢ GSTT (Buýt trợ giá HCM)</label>
           <label className="report-file-dropzone report-file-cyan flex min-h-24 cursor-pointer items-center gap-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 transition">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-cyan-600 shadow-sm"><UploadCloud size={22}/></span>
             <span className="min-w-0 flex-1"><b className="block truncate text-sm font-semibold text-slate-700">{form.file ? form.file.name : "Chọn file Hỗ trợ GSTT"}</b><small className="mt-1 block text-xs text-slate-400">Tự tìm sheet tháng theo khoảng ngày đã chọn</small></span>
             {form.file && <CircleCheckBig className="shrink-0 text-emerald-500" size={21}/>}<input className="sr-only" type="file" accept=".xlsx" onChange={chooseFile}/>
           </label>
-          <ExcelSchemaStatus file={form.file} schemaKey="gstt"/>
+          <ExcelSchemaStatus file={form.file} schemaKey="gstt" startDate={form.startDate} endDate={form.endDate}/>
+          <div className="mt-3 rounded-xl border border-cyan-100 bg-cyan-50/70 px-3 py-2.5 text-xs leading-5 text-cyan-800 dark:border-cyan-900/60 dark:bg-cyan-950/25 dark:text-cyan-300">
+            <b>File 2 — CITYBUS - BÁO CÁO HỖ TRỢ GSTT BP.QLCL-DV</b>
+            <span className="block opacity-80">Đây là biểu mẫu đầu ra do hệ thống quản lý; bạn không cần tải file này lên ở màn hình báo cáo.</span>
+          </div>
         </div>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <label><span className="field-label"><CalendarDays size={17}/> Từ ngày</span><input className="field-input report-input report-input-cyan" type="date" value={form.startDate} onChange={event => dispatch(setGsttStartDate(event.target.value))}/></label>
