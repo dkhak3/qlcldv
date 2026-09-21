@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, FileSpreadsheet, FileWarning, LoaderCircle } from "lucide-react";
 import { inspectExcelFile } from "../utils/excelSchemaValidator";
 import { inspectGsttFileForRange } from "../utils/gsttProcessor";
+import { inspectTxdlFile } from "../utils/txdlProcessor";
 
 export default function ExcelSchemaStatus({ file, schemaKey, startDate = "", endDate = "" }) {
   const [state, setState] = useState(null);
@@ -11,7 +12,9 @@ export default function ExcelSchemaStatus({ file, schemaKey, startDate = "", end
     setState({ checking: true });
     const inspection = schemaKey === "gstt"
       ? inspectGsttFileForRange(file, startDate, endDate)
-      : inspectExcelFile(file, schemaKey);
+      : schemaKey === "txdl"
+        ? inspectTxdlFile(file)
+        : inspectExcelFile(file, schemaKey);
     inspection.then(result => { if (active) setState(result); })
       .catch(error => { if (active) setState({ valid: false, error: error.message || "Không thể kiểm tra file" }); });
     return () => { active = false; };

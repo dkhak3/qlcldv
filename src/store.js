@@ -42,6 +42,37 @@ const speed4hSlice = createSlice({
   },
 });
 
+const txdlSlice = createSlice({
+  name: "txdl",
+  initialState: {
+    file: null,
+    startDate: "",
+    endDate: "",
+    employees: "",
+    results: {
+      rows: [],
+      removedRows: [],
+      totalBeforeFilter: 0,
+      totalAfterFilter: 0,
+      totalMatched: 0,
+      totalRemoved: 0,
+      totalViolation: 0,
+      totalNoViolation: 0,
+      totalSupportCustomer: 0,
+      sourceSheets: [],
+    },
+    processed: false,
+  },
+  reducers: {
+    setTxdlFile: (state, action) => { state.file = action.payload; state.results = txdlSlice.getInitialState().results; state.processed = false; },
+    setTxdlStartDate: (state, action) => { state.startDate = action.payload; state.results = txdlSlice.getInitialState().results; state.processed = false; },
+    setTxdlEndDate: (state, action) => { state.endDate = action.payload; state.results = txdlSlice.getInitialState().results; state.processed = false; },
+    setTxdlEmployees: (state, action) => { state.employees = action.payload; },
+    setTxdlResults: (state, action) => { state.results = action.payload; state.processed = true; },
+    clearTxdlResults: state => { state.results = txdlSlice.getInitialState().results; state.processed = false; },
+  },
+});
+
 const gsttSlice = createSlice({
   name: "gstt",
   initialState: { file: null, startDate: "", endDate: "", employees: "", results: [], processed: false },
@@ -84,9 +115,10 @@ const blogSlice = createSlice({
 export const { setFile, setTongdaFile, setStartDate, setEndDate, setEmployees, setResults, clearResults } = cameraSlice.actions;
 export const { setGpsFile, setGpsTongdaFile, setGpsStartDate, setGpsEndDate, setGpsEmployees, setGpsResults, clearGpsResults } = gpsSlice.actions;
 export const { setSpeed4hFile, setSpeed4hStartDate, setSpeed4hEndDate, setSpeed4hEmployees, setSpeed4hResults, clearSpeed4hResults } = speed4hSlice.actions;
+export const { setTxdlFile, setTxdlStartDate, setTxdlEndDate, setTxdlEmployees, setTxdlResults, clearTxdlResults } = txdlSlice.actions;
 export const { setGsttFile, setGsttStartDate, setGsttEndDate, setGsttEmployees, setGsttResults, clearGsttResults } = gsttSlice.actions;
 export const { addBlogPost, updateBlogPost, deleteBlogPost, setBlogPosts, setBlogLoading, setBlogError } = blogSlice.actions;
 export const store = configureStore({
-  reducer: { camera: cameraSlice.reducer, gps: gpsSlice.reducer, speed4h: speed4hSlice.reducer, gstt: gsttSlice.reducer, blog: blogSlice.reducer },
+  reducer: { camera: cameraSlice.reducer, gps: gpsSlice.reducer, txdl: txdlSlice.reducer, speed4h: speed4hSlice.reducer, gstt: gsttSlice.reducer, blog: blogSlice.reducer },
   middleware: getDefaultMiddleware => getDefaultMiddleware({ serializableCheck: false }),
 });

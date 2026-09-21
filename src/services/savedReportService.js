@@ -1,7 +1,7 @@
 import { addDoc, collection, deleteDoc, doc, getDocs, query, serverTimestamp, where } from "firebase/firestore";
 import { firestore } from "../lib/firebaseClient";
 
-const TYPE_LABELS = { camera: "Camera", gps: "GPS", speed4h: "Tốc độ, 4H", gstt: "Hỗ trợ GSTT", haukiem: "Hậu kiểm", atgt: "ATGT" };
+const TYPE_LABELS = { camera: "Camera", gps: "GPS", txdl: "TXDL", speed4h: "Tốc độ, 4H", gstt: "Hỗ trợ GSTT", haukiem: "Hậu kiểm", atgt: "ATGT" };
 
 function compactResults(type, results) {
   if (type === "camera" || type === "gps") {
@@ -26,6 +26,40 @@ function compactResults(type, results) {
     return {
       speed: compactRows(results?.speed),
       fourHour: compactRows(results?.fourHour),
+    };
+  }
+  if (type === "txdl") {
+    return {
+      rows: (results?.rows || []).map(row => ({
+        stt: row.stt,
+        jobStt: row.jobStt || "",
+        branch: row.branch || "",
+        route: row.route || "",
+        vehicle: row.vehicle || "",
+        content: row.content || "",
+        employeeName: row.employeeName || "",
+        noViolation: Number(row.noViolation) || 0,
+        violation: Number(row.violation) || 0,
+        supportCustomer: Boolean(row.supportCustomer),
+        violationType: row.violationType || "",
+      })),
+      removedRows: (results?.removedRows || []).map(row => ({
+        jobStt: row.jobStt || "",
+        receivedDate: row.receivedDate || "",
+        responseDate: row.responseDate || "",
+        dvkhEmployee: row.dvkhEmployee || "",
+        qlclEmployee: row.qlclEmployee || "",
+        content: row.content || "",
+        reason: row.reason || "",
+      })),
+      totalBeforeFilter: Number(results?.totalBeforeFilter) || 0,
+      totalAfterFilter: Number(results?.totalAfterFilter) || 0,
+      totalMatched: Number(results?.totalMatched) || 0,
+      totalRemoved: Number(results?.totalRemoved) || 0,
+      totalViolation: Number(results?.totalViolation) || 0,
+      totalNoViolation: Number(results?.totalNoViolation) || 0,
+      totalSupportCustomer: Number(results?.totalSupportCustomer) || 0,
+      sourceSheets: results?.sourceSheets || [],
     };
   }
   if (type === "gstt") {
@@ -65,6 +99,7 @@ function compactResults(type, results) {
 export function countSavedReportRows(type, results) {
   if (type === "camera" || type === "gps") return results.reduce((sum, group) => sum + group.rows.length, 0);
   if (type === "speed4h") return (results.speed?.length || 0) + (results.fourHour?.length || 0);
+  if (type === "txdl") return results?.rows?.length || 0;
   if (type === "haukiem" || type === "atgt") return results?.detailRows?.length || 0;
   return Array.isArray(results) ? results.length : 0;
 }
