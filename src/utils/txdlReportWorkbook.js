@@ -125,13 +125,16 @@ function fillRows(sheet, rows) {
     }
 
     for (let column = 1; column <= 8; column += 1) {
+      if (item.supportCustomer && column === 8) continue;
       const cell = row.getCell(column);
       cell.font = {
         ...cell.font,
         name: "Times New Roman",
         size: 11,
-        bold: column === 7 && item.supportCustomer,
-        color: cell.font?.color || { argb: "FF000000" },
+        bold: item.supportCustomer && column === 7 ? true : Boolean(cell.font?.bold),
+        color: item.supportCustomer && column === 7
+          ? { argb: "FFFF0000" }
+          : (cell.font?.color || { argb: "FF000000" }),
       };
       cell.alignment = {
         ...cell.alignment,
@@ -140,14 +143,31 @@ function fillRows(sheet, rows) {
         wrapText: true,
       };
     }
+
+    if (item.supportCustomer) {
+      const supportCell = row.getCell(7);
+      supportCell.font = { name: "Times New Roman", size: 11, bold: true, color: { argb: "FFFF0000" } };
+      supportCell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    }
   });
 
   const total = sheet.getRow(summaryRow);
   try { sheet.unMergeCells(`A${summaryRow}:F${summaryRow}`); } catch {}
   sheet.mergeCells(`A${summaryRow}:F${summaryRow}`);
-  total.getCell(1).value = "TỔNG";
-  total.getCell(7).value = rows.filter(row => Number(row.noViolation) === 1).length;
-  total.getCell(8).value = rows.filter(row => Number(row.violation) === 1).length;
+  const totalLabel = total.getCell(1);
+  totalLabel.value = "TỔNG";
+  totalLabel.font = { ...totalLabel.font, name: "Times New Roman", size: 12, bold: true, color: { argb: "FF000000" } };
+  totalLabel.alignment = { ...totalLabel.alignment, horizontal: "center", vertical: "middle", wrapText: true };
+
+  const noViolationTotal = total.getCell(7);
+  noViolationTotal.value = rows.filter(row => Number(row.noViolation) === 1).length;
+  noViolationTotal.font = { ...noViolationTotal.font, name: "Times New Roman", size: 11, bold: true, color: { argb: "FF000000" } };
+  noViolationTotal.alignment = { ...noViolationTotal.alignment, horizontal: "center", vertical: "middle" };
+
+  const violationTotal = total.getCell(8);
+  violationTotal.value = rows.filter(row => Number(row.violation) === 1).length;
+  violationTotal.font = { ...violationTotal.font, name: "Times New Roman", size: 11, bold: true, color: { argb: "FF000000" } };
+  violationTotal.alignment = { ...violationTotal.alignment, horizontal: "center", vertical: "middle" };
   return summaryRow;
 }
 

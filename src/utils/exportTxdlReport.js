@@ -3,7 +3,8 @@ import { getReportTemplateBuffer } from "../services/reportTemplateService.js";
 import { buildTxdlReportWorkbook } from "./txdlReportWorkbook.js";
 
 const { saveAs } = FileSaver;
-const FILE_NAME = "CITYBUS-BAO-CAO-TXDL-BP-QLCL-DV.xlsx";
+export const TXDL_REPORT_NAME = "CITYBUS - BÁO CÁO HỖ TRỢ TRÍCH XUẤT DỮ LIỆU BP.QLCL-DV";
+const FILE_NAME = `${TXDL_REPORT_NAME}.xlsx`;
 
 export async function exportTxdlReport(form) {
   const templateBuffer = await getReportTemplateBuffer("txdl");

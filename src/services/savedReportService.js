@@ -2,6 +2,7 @@ import { addDoc, collection, deleteDoc, doc, getDocs, query, serverTimestamp, wh
 import { firestore } from "../lib/firebaseClient";
 
 const TYPE_LABELS = { camera: "Camera", gps: "GPS", txdl: "TXDL", speed4h: "Tốc độ, 4H", gstt: "Hỗ trợ GSTT", haukiem: "Hậu kiểm", atgt: "ATGT" };
+const TXDL_SAVED_REPORT_TITLE = "CITYBUS - BÁO CÁO HỖ TRỢ TRÍCH XUẤT DỮ LIỆU BP.QLCL-DV";
 
 function compactResults(type, results) {
   if (type === "camera" || type === "gps") {
@@ -112,7 +113,7 @@ export async function createSavedReport({ type, startDate, endDate, employees, r
   const payload = {
     type,
     typeLabel: TYPE_LABELS[type] || type,
-    title: `Báo cáo ${TYPE_LABELS[type] || type} ${startDate} – ${endDate}`,
+    title: type === "txdl" ? TXDL_SAVED_REPORT_TITLE : `Báo cáo ${TYPE_LABELS[type] || type} ${startDate} – ${endDate}`,
     startDate,
     endDate,
     employees: String(employees || "").trim(),
