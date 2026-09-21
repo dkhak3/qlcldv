@@ -1,6 +1,7 @@
 import { collection, doc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import { DEFAULT_SITE_PAGES } from "../data/sitePages";
 import { firestore } from "../lib/firebaseClient";
+import { writeAuditLog } from "./auditLogService";
 
 const mapPage = snapshot => ({ id: snapshot.id, ...snapshot.data(), key: snapshot.data().key || snapshot.id });
 
@@ -14,5 +15,6 @@ export async function getSitePages() {
 export async function saveSitePage(page) {
   const payload = { key: page.key, title: page.title.trim(), slug: page.slug, hidden: Boolean(page.hidden), roles: page.roles, updatedAt: serverTimestamp() };
   await setDoc(doc(firestore, "site_pages", page.key), payload, { merge: true });
+  void writeAuditLog({ action: "update", entityType: "site_page", entityId: page.key, label: page.title, details: { slug: page.slug, hidden: Boolean(page.hidden) } });
   return { ...page, ...payload };
 }

@@ -62,7 +62,10 @@ function parseCellDate(value) {
 
 function findWorksheet(workbook, expectedName) {
   const target = normalizeText(expectedName);
-  return workbook.worksheets.find(sheet => normalizeText(sheet.name) === target);
+  const aliases = target === "SO THEO DOI 16 TUYEN"
+    ? new Set([target, "SO THEO DOI 16 TUYEN HCM"])
+    : new Set([target]);
+  return workbook.worksheets.find(sheet => aliases.has(normalizeText(sheet.name)));
 }
 
 function readSheet(worksheet, startDate, endDate) {

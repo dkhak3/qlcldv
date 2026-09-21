@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import FileSaver from "file-saver";
 import { normalizeText } from "./cameraProcessor.js";
 import { applyStandardReportHeader } from "./reportHeader.js";
+import { getReportTemplateBuffer } from "../services/reportTemplateService.js";
 
 const { saveAs } = FileSaver;
 const TEMPLATE_URL = "/templates/CITYBUS-BAO-CAO-HO-TRO-GSTT-BP-QLCL-DV.xlsx";
@@ -98,9 +99,8 @@ export async function buildGsttReportWorkbook(templateBuffer, { results, startDa
 }
 
 export async function exportGsttReport(form) {
-  const response = await fetch(TEMPLATE_URL);
-  if (!response.ok) throw new Error("Không tải được file mẫu báo cáo Hỗ trợ GSTT");
-  const workbook = await buildGsttReportWorkbook(await response.arrayBuffer(), form);
+  const templateBuffer = await getReportTemplateBuffer("gstt");
+  const workbook = await buildGsttReportWorkbook(templateBuffer, form);
   const buffer = await workbook.xlsx.writeBuffer();
   saveAs(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), FILE_NAME);
 }

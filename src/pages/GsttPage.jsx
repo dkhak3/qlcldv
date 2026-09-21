@@ -5,6 +5,8 @@ import { toast } from "react-toastify";
 import NoData from "../components/NoData";
 import ManagedGuideVideo from "../components/ManagedGuideVideo";
 import SaveReportButton from "../components/SaveReportButton";
+import ExcelSchemaStatus from "../components/ExcelSchemaStatus";
+import ReportWorkflowStatus from "../components/ReportWorkflowStatus";
 import {
   clearGsttResults,
   setGsttEmployees,
@@ -119,6 +121,7 @@ export default function GsttPage() {
             <span className="min-w-0 flex-1"><b className="block truncate text-sm font-semibold text-slate-700">{form.file ? form.file.name : "Chọn file Hỗ trợ GSTT"}</b><small className="mt-1 block text-xs text-slate-400">Tự tìm sheet tháng theo khoảng ngày đã chọn</small></span>
             {form.file && <CircleCheckBig className="shrink-0 text-emerald-500" size={21}/>}<input className="sr-only" type="file" accept=".xlsx" onChange={chooseFile}/>
           </label>
+          <ExcelSchemaStatus file={form.file} schemaKey="gstt"/>
         </div>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <label><span className="field-label"><CalendarDays size={17}/> Từ ngày</span><input className="field-input report-input report-input-cyan" type="date" value={form.startDate} onChange={event => dispatch(setGsttStartDate(event.target.value))}/></label>
@@ -130,6 +133,7 @@ export default function GsttPage() {
           <button className="secondary-button" disabled={!hasData || loading} onClick={download}><Download size={18}/>Tải báo cáo</button>
           <SaveReportButton type="gstt" title="báo cáo Hỗ trợ GSTT" form={form} disabled={!hasData || loading} className="sm:col-span-2"/>
         </div>
+        <ReportWorkflowStatus files={[form.file]} startDate={form.startDate} endDate={form.endDate} employees={form.employees} hasData={hasData} processing={loading}/>
       </div>
     </div>
 

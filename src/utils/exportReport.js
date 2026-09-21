@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import FileSaver from "file-saver";
 import { normalizeText } from "./cameraProcessor.js";
 import { applyStandardReportHeader } from "./reportHeader.js";
+import { getReportTemplateBuffer } from "../services/reportTemplateService.js";
 
 const { saveAs } = FileSaver;
 
@@ -85,9 +86,8 @@ export async function buildCameraReportWorkbook(templateBuffer, { results, start
 }
 
 export async function exportCameraReport({ results, startDate, endDate, employees }) {
-  const response = await fetch("/templates/CITYBUS-BAO-CAO-CAMERA-BP-QLCL-DV.xlsx");
-  if (!response.ok) throw new Error("Không tải được file mẫu báo cáo");
-  const workbook = await buildCameraReportWorkbook(await response.arrayBuffer(), { results, startDate, endDate, employees });
+  const templateBuffer = await getReportTemplateBuffer("camera");
+  const workbook = await buildCameraReportWorkbook(templateBuffer, { results, startDate, endDate, employees });
   const buffer = await workbook.xlsx.writeBuffer();
   saveAs(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), "CITYBUS - BÁO CÁO CAMERA BP.QLCL-DV.xlsx");
 }

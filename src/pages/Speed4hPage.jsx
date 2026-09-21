@@ -5,6 +5,8 @@ import { toast } from "react-toastify";
 import NoData from "../components/NoData";
 import ManagedGuideVideo from "../components/ManagedGuideVideo";
 import SaveReportButton from "../components/SaveReportButton";
+import ExcelSchemaStatus from "../components/ExcelSchemaStatus";
+import ReportWorkflowStatus from "../components/ReportWorkflowStatus";
 import {
   clearSpeed4hResults,
   setSpeed4hEmployees,
@@ -125,6 +127,7 @@ export default function Speed4hPage() {
             <span className="min-w-0 flex-1"><b className="block truncate text-sm font-semibold text-slate-700">{form.file ? form.file.name : "Chọn file Tốc độ, 4H"}</b><small className="mt-1 block text-xs text-slate-400">Dùng hai sheet TỐC ĐỘ và 4H</small></span>
             {form.file && <CircleCheckBig className="shrink-0 text-emerald-500" size={21}/>}<input className="sr-only" type="file" accept=".xlsx" onChange={chooseFile}/>
           </label>
+          <ExcelSchemaStatus file={form.file} schemaKey="speed4h"/>
         </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -137,6 +140,7 @@ export default function Speed4hPage() {
           <button className="secondary-button" disabled={!hasData || loading} onClick={download}><Download size={18}/>Tải báo cáo</button>
           <SaveReportButton type="speed4h" title="báo cáo Tốc độ, 4H" form={form} disabled={!hasData || loading} className="sm:col-span-2"/>
         </div>
+        <ReportWorkflowStatus files={[form.file]} startDate={form.startDate} endDate={form.endDate} employees={form.employees} hasData={hasData} processing={loading}/>
       </div>
     </div>
 

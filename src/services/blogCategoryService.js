@@ -9,6 +9,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { firestore } from "../lib/firebaseClient";
+import { writeAuditLog } from "./auditLogService";
 
 export const DEFAULT_BLOG_CATEGORIES = [];
 const mapCategory = (snapshot) => ({
@@ -47,6 +48,7 @@ export async function createBlogCategory(name) {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  void writeAuditLog({ action: "create", entityType: "blog_category", entityId: reference.id, label: cleanName });
   return { id: reference.id, name: cleanName };
 }
 
@@ -59,9 +61,11 @@ export async function updateBlogCategory(id, name) {
     name: cleanName,
     updatedAt: serverTimestamp(),
   });
+  void writeAuditLog({ action: "update", entityType: "blog_category", entityId: id, label: cleanName });
   return { id, name: cleanName };
 }
 
 export async function deleteBlogCategory(id) {
   await deleteDoc(doc(firestore, "blog_categories", id));
+  void writeAuditLog({ action: "delete", entityType: "blog_category", entityId: id, label: "Chuyên mục" });
 }

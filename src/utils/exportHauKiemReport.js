@@ -1,6 +1,7 @@
 import FileSaver from "file-saver";
 import JSZip from "jszip";
 import { formatDateVi } from "./cameraProcessor.js";
+import { getReportTemplateBuffer } from "../services/reportTemplateService.js";
 
 const { saveAs } = FileSaver;
 const TEMPLATE_URL = "/templates/CITYBUS-BAO-CAO-HAU-KIEM-BP-QLCL-DV.xlsx";
@@ -392,24 +393,11 @@ export async function buildHauKiemReportFile(
   });
 }
 
-export async function exportHauKiemReport({
-  results,
-  startDate,
-  endDate,
-  employees,
-}) {
-  const response = await fetch(TEMPLATE_URL);
-  if (!response.ok) throw new Error("Không tải được file mẫu báo cáo Hậu kiểm");
-  const fileBytes = await buildHauKiemReportFile(await response.arrayBuffer(), {
-    results,
-    startDate,
-    endDate,
-    employees,
-  });
+export async function exportHauKiemReport({ results, startDate, endDate, employees }) {
+  const templateBuffer = await getReportTemplateBuffer("haukiem");
+  const fileBytes = await buildHauKiemReportFile(templateBuffer, { results, startDate, endDate, employees });
   saveAs(
-    new Blob([fileBytes], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    }),
+    new Blob([fileBytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
     "CITYBUS - BÁO CÁO HẬU KIỂM BP.QLCL-DV.xlsx",
   );
 }

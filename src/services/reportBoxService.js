@@ -1,6 +1,7 @@
 import { addDoc, collection, deleteDoc, doc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import { firestore, isFirebaseConfigured } from "../lib/firebaseClient";
 import { DEFAULT_REPORT_BOXES, isCoreReportBox } from "../data/reportBoxes";
+import { writeAuditLog } from "./auditLogService";
 
 function toIso(value) {
   if (!value) return "";
@@ -73,9 +74,11 @@ function payload(box) {
 export async function saveReportBox(box) {
   if (box.id) {
     await setDoc(doc(firestore, "report_boxes", box.id), payload(box), { merge: true });
+    void writeAuditLog({ action: "update", entityType: "report_box", entityId: box.id, label: box.title, details: { hidden: Boolean(box.hidden), slug: box.slug } });
     return { ...box, updatedAt: new Date().toISOString() };
   }
   const reference = await addDoc(collection(firestore, "report_boxes"), payload(box));
+  void writeAuditLog({ action: "create", entityType: "report_box", entityId: reference.id, label: box.title, details: { slug: box.slug } });
   return { ...box, id: reference.id, updatedAt: new Date().toISOString() };
 }
 
@@ -83,4 +86,5 @@ export async function deleteReportBox(box) {
   if (!box?.id) throw new Error("Không xác định được Box cần xóa");
   if (isCoreReportBox(box)) throw new Error("Không thể xóa 7 Box báo cáo chính");
   await deleteDoc(doc(firestore, "report_boxes", box.id));
+  void writeAuditLog({ action: "delete", entityType: "report_box", entityId: box.id, label: box.title });
 }

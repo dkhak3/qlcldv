@@ -4,6 +4,8 @@ import { toast } from "react-toastify";
 import ManagedGuideVideo from "../components/ManagedGuideVideo";
 import NoData from "../components/NoData";
 import SaveReportButton from "../components/SaveReportButton";
+import ExcelSchemaStatus from "../components/ExcelSchemaStatus";
+import ReportWorkflowStatus from "../components/ReportWorkflowStatus";
 import { exportAtgtReport } from "../utils/exportAtgtReport";
 import { fingerprintAtgtFile, processAtgtFiles } from "../utils/atgtProcessor";
 
@@ -129,10 +131,12 @@ export default function AtgtPage() {
         <div className="mt-6"><label className="field-label"><UploadCloud size={17}/> File ATGT ({files.length}/7)</label><label className="report-file-dropzone report-file-indigo flex min-h-24 cursor-pointer items-center gap-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 transition dark:border-slate-700 dark:bg-slate-950/50"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-indigo-700 shadow-sm dark:bg-slate-900 dark:text-indigo-300">{addingFiles ? <LoaderCircle className="animate-spin" size={22}/> : <UploadCloud size={22}/>}</span><span className="min-w-0 flex-1"><b className="block text-sm font-semibold text-slate-700 dark:text-slate-200">{files.length ? "Thêm file ATGT khác" : "Chọn các file ATGT"}</b><small className="mt-1 block text-xs text-slate-400">Có thể chọn nhiều file cùng lúc; file trùng sẽ tự động bị bỏ qua</small></span><input className="sr-only" type="file" accept=".xlsx" multiple disabled={addingFiles || files.length >= 7} onChange={chooseFiles}/></label>
           {files.length > 0 && <div className="mt-3 space-y-2">{files.map((item, index) => <div key={item.fingerprint} className="flex items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50/60 px-3 py-2.5 dark:border-indigo-900/60 dark:bg-indigo-950/25"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white text-xs font-bold text-indigo-700 shadow-sm dark:bg-slate-900 dark:text-indigo-300">{index + 1}</span><span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700 dark:text-slate-200">{item.file.name}</span><button type="button" onClick={() => removeFile(item.fingerprint)} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-white hover:text-rose-600 dark:hover:bg-slate-800" title="Bỏ file"><X size={16}/></button></div>)}</div>}
         </div>
+        <ExcelSchemaStatus file={files[0]?.file} schemaKey="atgt"/>
         <div className="mt-5 grid gap-4 sm:grid-cols-2"><label><span className="field-label"><CalendarDays size={17}/>Từ ngày</span><input className="field-input report-input report-input-indigo" type="date" value={startDate} onChange={event => setStartDate(event.target.value)}/></label><label><span className="field-label"><CalendarDays size={17}/>Đến ngày</span><input className="field-input report-input report-input-indigo" type="date" value={endDate} onChange={event => setEndDate(event.target.value)}/></label></div>
         <p className="mt-2 text-xs leading-5 text-indigo-700 dark:text-indigo-300">Khoảng ngày này dùng để ghi tiêu đề tuần báo cáo; hệ thống vẫn tổng hợp toàn bộ dữ liệu trong các file đã nhập.</p>
         <label className="mt-5 block"><span className="field-label"><UserRound size={17}/>Tên nhân viên QLCL-DV</span><input className="field-input report-input report-input-indigo" value={employees} onChange={event => setEmployees(event.target.value)} placeholder="Ví dụ: Nguyễn Hữu Duy Kha"/></label>
         <div className="mt-6 grid gap-3 sm:grid-cols-2"><button className="primary-button !bg-indigo-700 !shadow-indigo-200 hover:!bg-indigo-800 dark:!shadow-none" disabled={!valid || loading || addingFiles} onClick={search}>{loading ? <LoaderCircle className="animate-spin" size={18}/> : <Search size={18}/>} {loading ? "Đang xử lý..." : "Search"}</button><button className="secondary-button" disabled={!hasData || loading} onClick={download}><Download size={18}/>Tải báo cáo</button><SaveReportButton type="atgt" title="báo cáo ATGT" form={saveForm} disabled={!hasData || loading} className="sm:col-span-2"/></div>
+        <ReportWorkflowStatus files={files.map(item => item.file)} startDate={startDate} endDate={endDate} employees={employees} hasData={hasData} processing={loading}/>
       </div>
     </div>
 
