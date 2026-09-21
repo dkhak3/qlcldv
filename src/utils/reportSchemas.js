@@ -33,7 +33,7 @@ export const REPORT_FILE_SCHEMAS = {
   },
   gstt: {
     label: "Hỗ trợ GSTT",
-    dynamicSheetPattern: /^(0?[1-9]|1[0-2])[.\-_ ]20\d{2}$/,
+    dynamicSheetPattern: /^(0?[1-9]|1[0-2])(?:[.\/\-_ ]?)(20\d{2})$/,
     dynamicHeaders: ["THỜI GIAN YC HỖ TRỢ", "SỐ XE", "TUYẾN", "TRẠNG THÁI"],
   },
   haukiem: {
