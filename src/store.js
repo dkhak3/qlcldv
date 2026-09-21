@@ -50,6 +50,7 @@ const txdlSlice = createSlice({
     endDate: "",
     employees: "",
     results: {
+      lookupRows: [],
       rows: [],
       removedRows: [],
       totalBeforeFilter: 0,

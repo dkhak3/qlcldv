@@ -4,6 +4,7 @@ import { File } from "node:buffer";
 import { readFile } from "node:fs/promises";
 import ExcelJS from "exceljs";
 import { __test__, processTxdlFile } from "../src/utils/txdlProcessor.js";
+import { buildTxdlReportWorkbook, findTxdlSummaryRow } from "../src/utils/txdlReportWorkbook.js";
 
 test("TXDL tách Chi nhánh và nội dung cho form cũ/mới", () => {
   const oldForm = "1/ Chi nhánh/Đơn vị: CN Bình Tân 2/ Tuyến: 01 5/ Nội dung tiếp nhận PA/KN: Xe chạy ẩu 6/ Thông tin KH: A";
@@ -44,6 +45,10 @@ test("TXDL lọc Sheet 1 theo ngày và ghép Sheet 2 bằng STT", async () => {
   assert.equal(result.totalAfterFilter, 3);
   assert.equal(result.totalMatched, 2);
   assert.equal(result.totalRemoved, 1);
+  assert.equal(result.lookupRows.length, 3);
+  assert.equal(result.lookupRows[0].jobStt, "1");
+  assert.equal(result.lookupRows[0].receivedDate, "01/09/2026");
+  assert.equal(result.lookupRows[0].qlclEmployee, "QLCL A");
   assert.equal(result.totalViolation, 1);
   assert.equal(result.totalNoViolation, 0);
   assert.equal(result.totalSupportCustomer, 1);
@@ -59,5 +64,46 @@ test("Template TXDL mặc định là XLSX hợp lệ và có sheet BCTH P.QLCL"
   assert.ok(bytes.byteLength > 1000);
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(bytes);
-  assert.ok(workbook.getWorksheet("BCTH P.QLCL"));
+  const sheet = workbook.getWorksheet("BCTH P.QLCL");
+  assert.ok(sheet);
+  assert.ok(findTxdlSummaryRow(sheet) >= 9);
+});
+
+test("TXDL xuất báo cáo chính với nhiều dòng và giữ phần Khó khăn/đề xuất", async () => {
+  const path = new URL("../public/templates/CITYBUS-BAO-CAO-TXDL-BP-QLCL-DV.xlsx", import.meta.url);
+  const bytes = await readFile(path);
+  const rows = Array.from({ length: 12 }, (_, index) => ({
+    stt: index + 1,
+    jobStt: String(index + 1),
+    branch: "HCM",
+    route: `Tuyến ${index + 1}`,
+    vehicle: `50E${String(index + 1).padStart(5, "0")}`,
+    content: `Nội dung ${index + 1}`,
+    employeeName: `Nhân viên ${index + 1}`,
+    noViolation: index % 3 === 0 ? 1 : 0,
+    violation: index % 3 === 1 ? 1 : 0,
+    supportCustomer: index % 3 === 2,
+  }));
+  const workbook = await buildTxdlReportWorkbook(bytes, {
+    results: { rows },
+    startDate: "2026-09-01",
+    endDate: "2026-09-07",
+    employees: "QLCL-DV",
+  });
+  const sheet = workbook.getWorksheet("BCTH P.QLCL");
+  const summaryRow = findTxdlSummaryRow(sheet);
+  assert.equal(summaryRow, 20);
+  assert.equal(sheet.getCell("A8").value, 1);
+  assert.equal(sheet.getCell("B19").value, "HCM");
+  assert.equal(sheet.getCell("G10").value, "HỖ TRỢ KHÁCH HÀNG");
+  assert.equal(sheet.getCell(summaryRow, 7).value, 4);
+  assert.equal(sheet.getCell(summaryRow, 8).value, 4);
+  assert.match(String(sheet.getCell(summaryRow + 1, 1).value || ""), /Khó khăn|KHO KHĂN/i);
+
+  const output = await workbook.xlsx.writeBuffer();
+  const reopened = new ExcelJS.Workbook();
+  await reopened.xlsx.load(output);
+  const reopenedSheet = reopened.getWorksheet("BCTH P.QLCL");
+  assert.equal(findTxdlSummaryRow(reopenedSheet), summaryRow);
+  assert.match(String(reopenedSheet.getCell(summaryRow + 1, 1).value || ""), /Khó khăn|KHO KHĂN/i);
 });
