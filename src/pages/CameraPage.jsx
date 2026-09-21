@@ -6,6 +6,8 @@ import { useNavigate } from "react-router-dom";
 import NoData from "../components/NoData";
 import ManagedGuideVideo from "../components/ManagedGuideVideo";
 import SaveReportButton from "../components/SaveReportButton";
+import ExcelSchemaStatus from "../components/ExcelSchemaStatus";
+import ReportWorkflowStatus from "../components/ReportWorkflowStatus";
 import { setFile, setTongdaFile, setStartDate, setEndDate, setEmployees, setResults, clearResults } from "../store";
 import { countUniqueBranches, processCameraFiles } from "../utils/cameraProcessor";
 import { exportCameraReport } from "../utils/exportReport";
@@ -81,6 +83,7 @@ export default function CameraPage() {
             <span className="min-w-0 flex-1"><b className="block truncate text-sm font-semibold text-slate-700">{form.file ? form.file.name : "Chọn file Camera chính"}</b><small className="mt-1 block text-xs text-slate-400">Dùng các sheet BÌNH ANH, 35 TUYẾN và SOJI</small></span>
             {form.file && <CircleCheckBig className="shrink-0 text-emerald-500" size={21}/>}<input className="sr-only" type="file" accept=".xlsx" onChange={event => chooseFile(event, setFile, "File Camera chính")}/>
           </label>
+          <ExcelSchemaStatus file={form.file} schemaKey="cameraMain"/>
         </div>
 
         <div className="mt-5">
@@ -90,6 +93,7 @@ export default function CameraPage() {
             <span className="min-w-0 flex-1"><b className="block truncate text-sm font-semibold text-slate-700">{form.tongdaFile ? form.tongdaFile.name : "Chọn file TONGDA"}</b><small className="mt-1 block text-xs text-slate-400">Dùng sheet Sổ theo dõi CAMERA</small></span>
             {form.tongdaFile && <CircleCheckBig className="shrink-0 text-emerald-500" size={21}/>}<input className="sr-only" type="file" accept=".xlsx" onChange={event => chooseFile(event, setTongdaFile, "File TONGDA")}/>
           </label>
+          <ExcelSchemaStatus file={form.tongdaFile} schemaKey="cameraTongda"/>
         </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -98,6 +102,7 @@ export default function CameraPage() {
         </div>
         <label className="mt-5 block"><span className="field-label"><UserRound size={17}/> Tên nhân viên QLCL-DV</span><input className="field-input report-input report-input-orange" type="text" placeholder="Ví dụ: Xin Thăng Kiệt, Nguyễn Quốc Cung" value={form.employees} onChange={event => dispatch(setEmployees(event.target.value))}/></label>
         <div className="mt-6 grid gap-3 sm:grid-cols-2"><button className="primary-button" disabled={!valid || loading} onClick={search}>{loading ? <LoaderCircle className="animate-spin" size={18}/> : <Search size={18}/>} {loading ? "Đang xử lý..." : "Search"}</button><button className="secondary-button" disabled={!hasData || loading} onClick={download}><Download size={18}/>Tải báo cáo</button><button className="secondary-button" disabled={!hasData || loading} onClick={() => navigate("/bao-cao-camera/chi-tiet")}><Eye size={18}/>Xem chi tiết các xe</button><SaveReportButton type="camera" title="báo cáo Camera" form={form} disabled={!hasData || loading}/></div>
+        <ReportWorkflowStatus files={[form.file, form.tongdaFile]} startDate={form.startDate} endDate={form.endDate} employees={form.employees} hasData={hasData} processing={loading}/>
       </div>
     </div>
 

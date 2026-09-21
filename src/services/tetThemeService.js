@@ -1,6 +1,7 @@
 import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { firestore } from "../lib/firebaseClient";
 import { getDefaultTetYear, normalizeTetYear } from "../utils/tet";
+import { writeAuditLog } from "./auditLogService";
 
 const SETTINGS_DOC = "_tet_theme";
 const SETTINGS_COLLECTION = "site_pages";
@@ -53,5 +54,6 @@ export async function saveTetThemeSettings(settings) {
     year: normalized.year,
     updatedAt: serverTimestamp(),
   }, { merge: true });
+  void writeAuditLog({ action: "update", entityType: "tet_theme", entityId: SETTINGS_DOC, label: "Giao diện Tết", details: { enabled: normalized.enabled, year: normalized.year } });
   return normalized;
 }

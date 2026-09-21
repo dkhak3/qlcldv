@@ -155,6 +155,26 @@ service cloud.firestore {
         allow create, update, delete: if isSuperAdmin();
       }
 
+      match /report_templates/{templateId} {
+        allow read: if signedIn();
+        allow create, update: if isSuperAdmin();
+        allow delete: if false;
+      }
+
+      match /report_template_versions/{versionId} {
+        allow read: if isSuperAdmin();
+        allow create: if isSuperAdmin();
+        allow update, delete: if false;
+      }
+
+      match /audit_logs/{logId} {
+        allow read: if isSuperAdmin();
+        allow create: if signedIn()
+          && request.resource.data.actorId == request.auth.uid
+          && request.resource.data.actorRole == request.auth.token.role;
+        allow update, delete: if false;
+      }
+
       match /saved_reports/{reportId} {
         allow create: if signedIn()
           && request.resource.data.ownerId == request.auth.uid

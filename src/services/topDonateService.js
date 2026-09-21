@@ -9,6 +9,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { firestore } from "../lib/firebaseClient";
+import { writeAuditLog } from "./auditLogService";
 
 const COLLECTION_NAME = "top_donates";
 
@@ -91,6 +92,7 @@ export async function saveTopDonate(item) {
 
   if (item.id) {
     await updateDoc(doc(firestore, COLLECTION_NAME, item.id), payload);
+    void writeAuditLog({ action: "update", entityType: "top_donate", entityId: item.id, label: payload.donorName, details: { amount: payload.amount, hidden: payload.hidden } });
     return saved;
   }
 
@@ -98,6 +100,7 @@ export async function saveTopDonate(item) {
     ...payload,
     createdAt: serverTimestamp(),
   });
+  void writeAuditLog({ action: "create", entityType: "top_donate", entityId: reference.id, label: payload.donorName, details: { amount: payload.amount } });
   return { ...saved, id: reference.id };
 }
 
@@ -106,9 +109,11 @@ export async function setTopDonateVisibility(item, hidden) {
     hidden: Boolean(hidden),
     updatedAt: serverTimestamp(),
   });
+  void writeAuditLog({ action: "visibility", entityType: "top_donate", entityId: item.id, label: item.donorName, details: { hidden: Boolean(hidden) } });
   return { ...item, hidden: Boolean(hidden) };
 }
 
 export async function deleteTopDonate(id) {
   await deleteDoc(doc(firestore, COLLECTION_NAME, id));
+  void writeAuditLog({ action: "delete", entityType: "top_donate", entityId: id, label: "Top Donate" });
 }

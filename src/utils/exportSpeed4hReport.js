@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import FileSaver from "file-saver";
 import { normalizeText } from "./cameraProcessor.js";
 import { applyStandardReportHeader } from "./reportHeader.js";
+import { getReportTemplateBuffer } from "../services/reportTemplateService.js";
 
 const { saveAs } = FileSaver;
 const TEMPLATE_URL = "/templates/CITYBUS-BAO-CAO-TOC-DO-4H-BP-QLCL-DV.xlsx";
@@ -118,9 +119,8 @@ export async function buildSpeed4hReportWorkbook(templateBuffer, { results, star
 }
 
 export async function exportSpeed4hReport(form) {
-  const response = await fetch(TEMPLATE_URL);
-  if (!response.ok) throw new Error("Không tải được file mẫu báo cáo Tốc độ, 4H");
-  const workbook = await buildSpeed4hReportWorkbook(await response.arrayBuffer(), form);
+  const templateBuffer = await getReportTemplateBuffer("speed4h");
+  const workbook = await buildSpeed4hReportWorkbook(templateBuffer, form);
   const buffer = await workbook.xlsx.writeBuffer();
   saveAs(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), FILE_NAME);
 }

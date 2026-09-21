@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import FileSaver from "file-saver";
 import { normalizeText } from "./cameraProcessor.js";
 import { applyStandardReportHeader } from "./reportHeader.js";
+import { getReportTemplateBuffer } from "../services/reportTemplateService.js";
 
 const { saveAs } = FileSaver;
 const SECTION_TITLES = {
@@ -97,10 +98,7 @@ export async function buildGpsReportWorkbook(templateBuffer, { results, startDat
 }
 
 export async function exportGpsReport({ results, startDate, endDate, employees }) {
-  const response = await fetch("/templates/CITYBUS-BAO-CAO-GPS-BP-QLCL-DV.xlsx?v=20260917-2", { cache: "no-store" });
-  if (!response.ok) throw new Error("Không tải được file mẫu báo cáo GPS");
-  const templateBuffer = await response.arrayBuffer();
-  if (templateBuffer.byteLength < 10000) throw new Error("File mẫu báo cáo GPS không hợp lệ. Vui lòng tải lại trang rồi thử lại");
+  const templateBuffer = await getReportTemplateBuffer("gps");
   const workbook = await buildGpsReportWorkbook(templateBuffer, { results, startDate, endDate, employees });
   const buffer = await workbook.xlsx.writeBuffer();
   const fileName = "CITYBUS - BÁO CÁO ĐỊNH VỊ BP.QLCL-DV.xlsx";

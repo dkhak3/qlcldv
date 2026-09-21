@@ -13,6 +13,7 @@ import { authenticatedApi } from "../lib/authenticatedApi";
 import { firestore } from "../lib/firebaseClient";
 import { fileToBase64 } from "../utils/media";
 import { getPublicProfiles } from "./publicProfileService";
+import { writeAuditLog } from "./auditLogService";
 
 function toIso(value) {
   if (!value) return "";
@@ -107,19 +108,23 @@ export async function getBlogPostBySlug(slug, canManage = false) {
 export async function createBlogPost(post, userId) {
   const reference = await addDoc(collection(firestore, "blog_posts"), toDatabasePost(post, userId, true));
   const now = new Date().toISOString();
+  void writeAuditLog({ action: "create", entityType: "blog_post", entityId: reference.id, label: post.title, details: { status: post.status, slug: post.slug } });
   return { ...post, id: reference.id, authorId: userId, createdAt: now, updatedAt: now, publishedAt: post.status === "published" ? (post.publishedAt || now) : "", views: 0 };
 }
 
 export async function updateBlogPostRecord(post) {
   await updateDoc(doc(firestore, "blog_posts", post.id), toDatabasePost(post));
+  void writeAuditLog({ action: "update", entityType: "blog_post", entityId: post.id, label: post.title, details: { status: post.status, slug: post.slug } });
   return { ...post, updatedAt: new Date().toISOString() };
 }
 
 export async function deleteBlogPostRecord(id) {
-  return authenticatedApi("/api/manage-blog-data", {
+  const result = await authenticatedApi("/api/manage-blog-data", {
     action: "delete-post",
     payload: { id },
   });
+  void writeAuditLog({ action: "delete", entityType: "blog_post", entityId: id, label: result?.title || "Bài viết" });
+  return result;
 }
 
 export async function cleanupDeletedBlogData() {
