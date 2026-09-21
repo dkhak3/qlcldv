@@ -1,5 +1,6 @@
 import { exportCameraReport } from "./exportReport";
 import { exportGpsReport } from "./exportGpsReport";
+import { exportTxdlReport } from "./exportTxdlReport";
 import { exportGsttReport } from "./exportGsttReport";
 import { exportSpeed4hReport } from "./exportSpeed4hReport";
 import { exportHauKiemReport } from "./exportHauKiemReport";
@@ -8,6 +9,7 @@ import { exportAtgtReport } from "./exportAtgtReport";
 const exporters = {
   camera: exportCameraReport,
   gps: exportGpsReport,
+  txdl: exportTxdlReport,
   speed4h: exportSpeed4hReport,
   gstt: exportGsttReport,
   haukiem: exportHauKiemReport,

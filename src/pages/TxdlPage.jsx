@@ -1,23 +1,268 @@
 import { useEffect, useState } from "react";
-import { ArrowUpRight, ExternalLink, FileSpreadsheet, ShieldCheck, Sparkles } from "lucide-react";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  CalendarDays,
+  CircleCheckBig,
+  Download,
+  ExternalLink,
+  FileSpreadsheet,
+  FileWarning,
+  FilterX,
+  LoaderCircle,
+  Search,
+  ShieldCheck,
+  UploadCloud,
+  UserRound,
+} from "lucide-react";
+import { toast } from "react-toastify";
 import ManagedGuideVideo from "../components/ManagedGuideVideo";
+import ExcelSchemaStatus from "../components/ExcelSchemaStatus";
+import ReportWorkflowStatus from "../components/ReportWorkflowStatus";
+import SaveReportButton from "../components/SaveReportButton";
+import NoData from "../components/NoData";
+import Pagination, { pageItems } from "../components/Pagination";
 import { getReportBoxByKey } from "../services/reportBoxService";
+import {
+  clearTxdlResults,
+  setTxdlEmployees,
+  setTxdlEndDate,
+  setTxdlFile,
+  setTxdlResults,
+  setTxdlStartDate,
+} from "../store";
+import { processTxdlFile } from "../utils/txdlProcessor";
+import { exportTxdlReport } from "../utils/exportTxdlReport";
 
 const DEFAULT_TXDL_URL = "https://txdl-project.vercel.app/";
 
+function StatCard({ label, value, tone = "slate" }) {
+  const tones = {
+    slate: "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-200",
+    emerald: "border-emerald-100 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300",
+    rose: "border-rose-100 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300",
+    amber: "border-amber-100 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300",
+    blue: "border-blue-100 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-300",
+  };
+  return <div className={`rounded-2xl border px-4 py-4 ${tones[tone] || tones.slate}`}>
+    <strong className="block text-2xl font-bold">{value}</strong>
+    <span className="mt-1 block text-[11px] font-semibold uppercase tracking-[.08em] opacity-75">{label}</span>
+  </div>;
+}
+
+function MatchedTable({ rows }) {
+  return <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+    <table className="w-full min-w-[1220px] border-collapse text-sm">
+      <thead className="bg-slate-50 text-slate-600 dark:bg-slate-950/70 dark:text-slate-300">
+        <tr>
+          <th className="px-3 py-3 text-center font-semibold">STT</th>
+          <th className="px-3 py-3 text-left font-semibold">Chi nhánh</th>
+          <th className="px-3 py-3 text-left font-semibold">Tuyến</th>
+          <th className="px-3 py-3 text-left font-semibold">Biển kiểm soát</th>
+          <th className="px-3 py-3 text-left font-semibold">Diễn giải chi tiết nội dung</th>
+          <th className="px-3 py-3 text-left font-semibold">Nhân viên bị phản ánh</th>
+          <th className="px-3 py-3 text-center font-semibold">Không vi phạm</th>
+          <th className="px-3 py-3 text-center font-semibold">Vi phạm</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+        {rows.map(row => <tr key={`${row.jobStt}-${row.stt}`} className="transition hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20">
+          <td className="px-3 py-3 text-center text-slate-500 dark:text-slate-400">{row.stt}</td>
+          <td className="px-3 py-3 font-semibold text-slate-700 dark:text-slate-200">{row.branch || "—"}</td>
+          <td className="max-w-xs px-3 py-3 text-slate-600 dark:text-slate-300">{row.route || "—"}</td>
+          <td className="px-3 py-3 font-semibold tracking-wide text-slate-700 dark:text-slate-200">{row.vehicle || "—"}</td>
+          <td className="max-w-lg whitespace-normal px-3 py-3 leading-6 text-slate-600 dark:text-slate-300">{row.content || "—"}</td>
+          <td className="max-w-xs px-3 py-3 text-slate-600 dark:text-slate-300">{row.employeeName || "—"}</td>
+          {row.supportCustomer
+            ? <td className="px-3 py-3 text-center font-bold text-rose-600 dark:text-rose-300" colSpan="2">HỖ TRỢ KHÁCH HÀNG</td>
+            : <><td className="px-3 py-3 text-center font-bold text-emerald-600 dark:text-emerald-300">{row.noViolation || ""}</td><td className="px-3 py-3 text-center font-bold text-rose-600 dark:text-rose-300">{row.violation || ""}</td></>}
+        </tr>)}
+      </tbody>
+    </table>
+  </div>;
+}
+
+function RemovedTable({ rows }) {
+  return <div className="overflow-x-auto rounded-xl border border-rose-200 dark:border-rose-900/60">
+    <table className="w-full min-w-[1100px] border-collapse text-sm">
+      <thead className="bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">
+        <tr>
+          <th className="px-3 py-3 text-left font-semibold">STT JOB</th>
+          <th className="px-3 py-3 text-left font-semibold">Ngày tiếp nhận</th>
+          <th className="px-3 py-3 text-left font-semibold">Ngày phản hồi</th>
+          <th className="px-3 py-3 text-left font-semibold">Nhân viên DVKH</th>
+          <th className="px-3 py-3 text-left font-semibold">Nhân viên QLCL-DV</th>
+          <th className="px-3 py-3 text-left font-semibold">Nội dung tiếp nhận</th>
+          <th className="px-3 py-3 text-left font-semibold">Lý do loại</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-rose-100 dark:divide-rose-900/40">
+        {rows.map((row, index) => <tr key={`${row.jobStt}-${index}`} className="hover:bg-rose-50/40 dark:hover:bg-rose-950/20">
+          <td className="px-3 py-3 font-bold text-slate-700 dark:text-slate-200">{row.jobStt}</td>
+          <td className="px-3 py-3 text-slate-600 dark:text-slate-300">{row.receivedDate || "—"}</td>
+          <td className="px-3 py-3 text-slate-600 dark:text-slate-300">{row.responseDate || "—"}</td>
+          <td className="px-3 py-3 text-slate-600 dark:text-slate-300">{row.dvkhEmployee || "—"}</td>
+          <td className="px-3 py-3 text-slate-600 dark:text-slate-300">{row.qlclEmployee || "—"}</td>
+          <td className="max-w-lg whitespace-normal px-3 py-3 leading-6 text-slate-600 dark:text-slate-300">{row.content || "—"}</td>
+          <td className="max-w-sm whitespace-normal px-3 py-3 font-semibold text-rose-600 dark:text-rose-300">{row.reason}</td>
+        </tr>)}
+      </tbody>
+    </table>
+  </div>;
+}
+
 export default function TxdlPage() {
+  const dispatch = useDispatch();
+  const form = useSelector(state => state.txdl);
+  const [loading, setLoading] = useState(false);
   const [externalUrl, setExternalUrl] = useState(DEFAULT_TXDL_URL);
+  const [view, setView] = useState("matched");
+  const [matchedPage, setMatchedPage] = useState(1);
+  const [removedPage, setRemovedPage] = useState(1);
+
   useEffect(() => {
     getReportBoxByKey("txdl").then(box => {
       if (box?.externalUrl) setExternalUrl(box.externalUrl);
     }).catch(() => {});
   }, []);
 
+  const hasData = form.results.rows.length > 0;
+  const hasProcessed = form.processed;
+  const valid = form.file && form.startDate && form.endDate && form.employees.trim() && form.startDate <= form.endDate;
+  const matched = pageItems(form.results.rows, matchedPage, 20);
+  const removed = pageItems(form.results.removedRows, removedPage, 20);
+
+  const chooseFile = event => {
+    const selected = event.target.files?.[0] || null;
+    if (selected && !selected.name.toLowerCase().endsWith(".xlsx")) {
+      event.target.value = "";
+      dispatch(setTxdlFile(null));
+      toast.error("File TXDL: chỉ chấp nhận định dạng .xlsx");
+      return;
+    }
+    dispatch(setTxdlFile(selected));
+    setMatchedPage(1);
+    setRemovedPage(1);
+  };
+
+  const search = async () => {
+    if (!valid) return toast.warning("Vui lòng nhập file, khoảng ngày và tên nhân viên");
+    dispatch(clearTxdlResults());
+    setLoading(true);
+    try {
+      const results = await processTxdlFile(form.file, form.startDate, form.endDate);
+      dispatch(setTxdlResults(results));
+      setMatchedPage(1);
+      setRemovedPage(1);
+      setView("matched");
+      if (results.totalMatched) {
+        toast.success(`Hoàn tất! Ghép được ${results.totalMatched} phản ánh, loại ${results.totalRemoved} phản ánh`);
+      } else {
+        toast.info("File hợp lệ nhưng không có phản ánh ghép được trong khoảng ngày đã chọn");
+      }
+    } catch (error) {
+      dispatch(clearTxdlResults());
+      toast.error(error.message || "Không thể xử lý file TXDL");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const download = async () => {
+    setLoading(true);
+    try {
+      await exportTxdlReport(form);
+      toast.success("Báo cáo TXDL đã được tạo theo đúng biểu mẫu");
+    } catch (error) {
+      toast.error(error.message || "Không thể xuất báo cáo TXDL");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
-    <div className="mx-auto mb-10 max-w-3xl text-center"><span className="inline-flex rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold tracking-[.16em] text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">BÁO CÁO TUẦN</span><h1 className="mt-4 text-3xl font-bold tracking-tight text-ink dark:text-white sm:text-4xl">Báo cáo tuần TXDL</h1><p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400 sm:text-base">Xem video hướng dẫn hoặc truy cập trực tiếp hệ thống TXDL để xử lý báo cáo.</p></div>
-    <div className="grid items-stretch gap-6 lg:grid-cols-[.9fr_1.1fr]">
-      <ManagedGuideVideo reportKey="txdl" description="Cách sử dụng hệ thống Báo cáo tuần TXDL" minHeight="min-h-80"/>
-      <article className="relative isolate overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 p-6 text-white shadow-xl shadow-emerald-200/60 dark:border-emerald-800 dark:from-emerald-800 dark:via-teal-800 dark:to-cyan-900 dark:shadow-black/20 sm:p-8"><div className="absolute -right-16 -top-20 -z-10 h-64 w-64 rounded-full bg-white/20 blur-3xl"/><div className="absolute -bottom-24 -left-16 -z-10 h-64 w-64 rounded-full bg-cyan-200/20 blur-3xl"/><span className="grid h-14 w-14 place-items-center rounded-2xl border border-white/25 bg-white/15 shadow-lg backdrop-blur"><FileSpreadsheet size={28}/></span><div className="mt-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold tracking-wide backdrop-blur"><Sparkles size={14}/> HỆ THỐNG TXDL</div><h2 className="mt-4 max-w-xl text-2xl font-bold leading-tight sm:text-3xl">Mở công cụ tổng hợp và xử lý dữ liệu</h2><p className="mt-3 max-w-xl text-sm leading-7 text-emerald-50/90">Trang TXDL được vận hành tại hệ thống riêng. Liên kết sẽ mở trong một tab mới để dữ liệu trên trang báo cáo hiện tại không bị mất.</p><div className="mt-7 flex items-center gap-3 rounded-2xl border border-white/20 bg-slate-950/15 p-4 backdrop-blur"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/15"><ShieldCheck size={21}/></span><span className="min-w-0"><small className="block text-[11px] font-semibold uppercase tracking-wider text-emerald-100">Đường dẫn hệ thống</small><b className="mt-1 block truncate text-sm font-semibold">{externalUrl}</b></span></div><a href={externalUrl} target="_blank" rel="noreferrer" className="group mt-6 inline-flex h-12 w-full items-center justify-center gap-3 rounded-xl bg-white px-5 text-sm font-bold text-emerald-700 shadow-lg transition hover:-translate-y-0.5 hover:bg-emerald-50 hover:shadow-xl dark:!bg-white dark:!text-emerald-800 dark:hover:!bg-emerald-50 sm:w-auto"><ExternalLink size={19}/>Truy cập Báo cáo TXDL<ArrowUpRight size={18} className="transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5"/></a></article>
+    <div className="mx-auto mb-10 max-w-3xl text-center">
+      <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold tracking-[.16em] text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">BÁO CÁO TUẦN</span>
+      <h1 className="mt-4 text-3xl font-bold tracking-tight text-ink dark:text-white sm:text-4xl">Tổng hợp báo cáo TXDL</h1>
+      <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400 sm:text-base">Lọc phản ánh theo ngày phản hồi, đối chiếu 2 sheet theo STT và xuất báo cáo ngay trong QLCL-DV.</p>
+    </div>
+
+    <div className="grid items-start gap-6 lg:grid-cols-[.8fr_1.2fr]">
+      <ManagedGuideVideo reportKey="txdl" description="Cách chuẩn bị file và xuất báo cáo TXDL"/>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card dark:border-slate-800 dark:bg-slate-900 sm:p-6">
+        <div className="flex items-start gap-3 border-b border-slate-100 pb-5 dark:border-slate-800">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300"><FileSpreadsheet size={20}/></span>
+          <div><h2 className="font-bold text-ink dark:text-white">Dữ liệu báo cáo TXDL</h2><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">File nguồn cần tối thiểu 2 sheet; hệ thống tự nhận diện hàng tiêu đề.</p></div>
+        </div>
+
+        <div className="mt-6">
+          <label className="field-label"><UploadCloud size={17}/> File dữ liệu TXDL</label>
+          <label className="report-file-dropzone report-file-emerald flex min-h-24 cursor-pointer items-center gap-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 transition dark:border-slate-700 dark:bg-slate-950/50">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-emerald-600 shadow-sm dark:bg-slate-900 dark:text-emerald-300"><UploadCloud size={22}/></span>
+            <span className="min-w-0 flex-1"><b className="block truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{form.file ? form.file.name : "Chọn file TXDL"}</b><small className="mt-1 block text-xs text-slate-400">Sheet 1: phản ánh · Sheet 2: kết quả xác định vi phạm</small></span>
+            {form.file && <CircleCheckBig className="shrink-0 text-emerald-500" size={21}/>}
+            <input className="sr-only" type="file" accept=".xlsx" onChange={chooseFile}/>
+          </label>
+          <ExcelSchemaStatus file={form.file} schemaKey="txdl"/>
+        </div>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <label><span className="field-label"><CalendarDays size={17}/> Từ ngày</span><input className="field-input report-input report-input-emerald" type="date" value={form.startDate} onChange={event => dispatch(setTxdlStartDate(event.target.value))}/></label>
+          <label><span className="field-label"><CalendarDays size={17}/> Đến ngày</span><input className="field-input report-input report-input-emerald" type="date" min={form.startDate} value={form.endDate} onChange={event => dispatch(setTxdlEndDate(event.target.value))}/></label>
+        </div>
+
+        <label className="mt-5 block"><span className="field-label"><UserRound size={17}/> Tên nhân viên QLCL-DV</span><input className="field-input report-input report-input-emerald" type="text" placeholder="Ví dụ: Nguyễn Hữu Duy Kha" value={form.employees} onChange={event => dispatch(setTxdlEmployees(event.target.value))}/></label>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <button className="primary-button !bg-emerald-600 !shadow-emerald-200 hover:!bg-emerald-700 dark:!bg-emerald-800 dark:!shadow-none dark:hover:!bg-emerald-700" disabled={!valid || loading} onClick={search}>{loading ? <LoaderCircle className="animate-spin" size={18}/> : <Search size={18}/>} {loading ? "Đang xử lý..." : "Search"}</button>
+          <button className="secondary-button" disabled={!hasData || loading} onClick={download}><Download size={18}/>Tải báo cáo</button>
+          <SaveReportButton type="txdl" title="báo cáo TXDL" form={form} disabled={!hasData || loading} className="sm:col-span-2"/>
+        </div>
+
+        <ReportWorkflowStatus files={[form.file]} startDate={form.startDate} endDate={form.endDate} employees={form.employees} hasData={hasData} processing={loading}/>
+
+        <div className="mt-4 flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs leading-5 text-slate-500 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-400">
+          <ShieldCheck size={16} className="mt-0.5 shrink-0 text-emerald-500"/>
+          <span>Luồng mới chạy trực tiếp trong QLCL-DV. <a href={externalUrl} target="_blank" rel="noreferrer" className="font-semibold text-emerald-600 hover:underline dark:text-emerald-300">Mở hệ thống TXDL cũ <ExternalLink className="inline" size={13}/></a> nếu cần đối chiếu.</span>
+        </div>
+      </div>
+    </div>
+
+    <div className="mt-7 rounded-2xl border border-slate-200 bg-white p-5 shadow-card dark:border-slate-800 dark:bg-slate-900 sm:p-6">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div>
+          <h2 className="text-lg font-bold text-ink dark:text-white">Kết quả tổng hợp TXDL</h2>
+          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">Dữ liệu Sheet 1 được lọc theo NGÀY PHẢN HỒI rồi ghép với Sheet 2 bằng STT.</p>
+        </div>
+        {hasData && <button className="secondary-button !h-10 shrink-0" disabled={loading} onClick={download}><Download size={17}/>Tải Excel</button>}
+      </div>
+
+      {hasProcessed && <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <StatCard label="Sau lọc ngày" value={form.results.totalAfterFilter} tone="slate"/>
+        <StatCard label="Không vi phạm" value={form.results.totalNoViolation} tone="emerald"/>
+        <StatCard label="Vi phạm" value={form.results.totalViolation} tone="rose"/>
+        <StatCard label="Hỗ trợ khách hàng" value={form.results.totalSupportCustomer} tone="blue"/>
+        <StatCard label="Phản ánh bị loại" value={form.results.totalRemoved} tone="amber"/>
+      </div>}
+
+      {hasProcessed && <div className="mt-5 flex flex-wrap gap-2 border-b border-slate-100 pb-4 dark:border-slate-800">
+        <button type="button" onClick={() => setView("matched")} className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-xs font-bold transition ${view === "matched" ? "bg-emerald-600 text-white" : "border border-slate-200 text-slate-600 hover:border-emerald-200 hover:text-emerald-700 dark:border-slate-700 dark:text-slate-300"}`}><FileSpreadsheet size={16}/>Kết quả ghép ({form.results.totalMatched})</button>
+        <button type="button" onClick={() => setView("removed")} className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-xs font-bold transition ${view === "removed" ? "bg-rose-600 text-white" : "border border-slate-200 text-slate-600 hover:border-rose-200 hover:text-rose-700 dark:border-slate-700 dark:text-slate-300"}`}><FilterX size={16}/>Phản ánh bị loại ({form.results.totalRemoved})</button>
+      </div>}
+
+      <div className="mt-5">
+        {loading && !hasProcessed
+          ? <div className="flex min-h-64 flex-col items-center justify-center rounded-2xl bg-slate-50 text-slate-500 dark:bg-slate-950/50 dark:text-slate-400"><LoaderCircle className="animate-spin text-emerald-600" size={34}/><span className="mt-4 text-sm font-semibold">Đang đọc và đối chiếu 2 sheet...</span></div>
+          : !hasProcessed
+            ? <NoData searched={false} title="Chưa có kết quả TXDL" description="Chọn file, khoảng ngày và nhấn Search để bắt đầu xử lý."/>
+            : view === "matched"
+              ? form.results.rows.length
+                ? <><MatchedTable rows={matched.items}/><Pagination page={matched.safePage} pageCount={matched.pageCount} onChange={setMatchedPage}/></>
+                : <NoData searched title="Không có phản ánh ghép được" description="Không có STT phù hợp trong khoảng ngày đã chọn."/>
+              : form.results.removedRows.length
+                ? <><div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300"><FileWarning size={16} className="mt-0.5 shrink-0"/><span>Các dòng bên dưới có ở Sheet 1 nhưng không tìm thấy STT tương ứng trong Sheet 2, nên không được đưa vào báo cáo chính.</span></div><RemovedTable rows={removed.items}/><Pagination page={removed.safePage} pageCount={removed.pageCount} onChange={setRemovedPage}/></>
+                : <NoData searched title="Không có phản ánh bị loại" description="Tất cả STT sau lọc ngày đều tìm thấy dữ liệu đối chiếu ở Sheet 2."/>}
+      </div>
     </div>
   </section>;
 }

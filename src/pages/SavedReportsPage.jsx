@@ -72,6 +72,26 @@ function GsttDetail({ report }) {
   </section>;
 }
 
+function TxdlDetail({ report }) {
+  const rows = report.data?.rows || [];
+  const removed = report.data?.removedRows || [];
+  return <div className="space-y-6">
+    <div className="grid gap-3 sm:grid-cols-4">
+      <div className="rounded-xl bg-emerald-50 p-3 text-center text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"><b className="block text-xl">{report.data?.totalNoViolation || 0}</b><span className="text-xs">Không vi phạm</span></div>
+      <div className="rounded-xl bg-rose-50 p-3 text-center text-rose-700 dark:bg-rose-950/30 dark:text-rose-300"><b className="block text-xl">{report.data?.totalViolation || 0}</b><span className="text-xs">Vi phạm</span></div>
+      <div className="rounded-xl bg-blue-50 p-3 text-center text-blue-700 dark:bg-blue-950/30 dark:text-blue-300"><b className="block text-xl">{report.data?.totalSupportCustomer || 0}</b><span className="text-xs">Hỗ trợ khách hàng</span></div>
+      <div className="rounded-xl bg-amber-50 p-3 text-center text-amber-700 dark:bg-amber-950/30 dark:text-amber-300"><b className="block text-xl">{removed.length}</b><span className="text-xs">Bị loại</span></div>
+    </div>
+    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+      <table className="w-full min-w-[1100px] border-collapse text-sm">
+        <thead className="bg-slate-50 text-slate-600 dark:bg-slate-950/70 dark:text-slate-300"><tr><th className="px-3 py-3 text-center">STT</th><th className={headClass}>Chi nhánh</th><th className={headClass}>Tuyến</th><th className={headClass}>BKS</th><th className={headClass}>Nội dung</th><th className={headClass}>Nhân viên bị phản ánh</th><th className="px-3 py-3 text-center">Không vi phạm</th><th className="px-3 py-3 text-center">Vi phạm</th></tr></thead>
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">{rows.map((row, index) => <tr key={`${row.jobStt}-${index}`}><td className="px-3 py-3 text-center text-slate-500">{row.stt || index + 1}</td><td className={cellClass}>{row.branch || "—"}</td><td className={cellClass}>{row.route || "—"}</td><td className={cellClass}>{row.vehicle || "—"}</td><td className="max-w-md whitespace-normal px-3 py-3 text-slate-600 dark:text-slate-300">{row.content || "—"}</td><td className={cellClass}>{row.employeeName || "—"}</td>{row.supportCustomer ? <td className="px-3 py-3 text-center font-bold text-rose-600 dark:text-rose-300" colSpan="2">HỖ TRỢ KHÁCH HÀNG</td> : <><td className="px-3 py-3 text-center font-bold text-emerald-600">{row.noViolation || ""}</td><td className="px-3 py-3 text-center font-bold text-rose-600">{row.violation || ""}</td></>}</tr>)}</tbody>
+      </table>
+    </div>
+    {removed.length > 0 && <p className="text-xs text-amber-600 dark:text-amber-300">{removed.length} phản ánh không tìm thấy STT tương ứng ở Sheet 2 và đã bị loại khỏi báo cáo chính.</p>}
+  </div>;
+}
+
 function HauKiemDetail({ report }) {
   const rows = report.data?.summary || [];
   const isAtgt = report.type === "atgt";
@@ -84,6 +104,7 @@ function DetailRows({ report }) {
   if (report.type === "camera" || report.type === "gps") return <CameraGpsDetail report={report}/>;
   if (report.type === "speed4h") return <Speed4hDetail report={report}/>;
   if (report.type === "gstt") return <GsttDetail report={report}/>;
+  if (report.type === "txdl") return <TxdlDetail report={report}/>;
   if (report.type === "haukiem" || report.type === "atgt") return <HauKiemDetail report={report}/>;
   return <NoData searched title="Không đọc được dữ liệu" description="Loại báo cáo này chưa được hỗ trợ."/>;
 }

@@ -31,6 +31,9 @@ export const REPORT_FILE_SCHEMAS = {
       { name: "4H", headers: ["ĐỐI TÁC", "CHI NHÁNH", "TUYẾN", "SỐ XE"] },
     ],
   },
+  txdl: {
+    label: "TXDL",
+  },
   gstt: {
     label: "Hỗ trợ GSTT",
     dynamicSheetPattern: /^(0?[1-9]|1[0-2])(?:[.\/\-_ ]?)(20\d{2})$/,
@@ -51,6 +54,7 @@ export const REPORT_TEMPLATE_DEFINITIONS = {
   gps: { key: "gps", label: "Báo cáo tuần GPS", staticPath: "/templates/CITYBUS-BAO-CAO-GPS-BP-QLCL-DV.xlsx", requiredSheets: ["BCTH P.QLCL"] },
   speed4h: { key: "speed4h", label: "Báo cáo Tốc độ, 4H", staticPath: "/templates/CITYBUS-BAO-CAO-TOC-DO-4H-BP-QLCL-DV.xlsx", requiredSheets: ["BCTH P.QLCL"] },
   gstt: { key: "gstt", label: "Báo cáo Hỗ trợ GSTT", staticPath: "/templates/CITYBUS-BAO-CAO-HO-TRO-GSTT-BP-QLCL-DV.xlsx", requiredSheets: ["SP BP.GSTT"] },
+  txdl: { key: "txdl", label: "Báo cáo tuần TXDL", staticPath: "/templates/CITYBUS-BAO-CAO-TXDL-BP-QLCL-DV.xlsx", requiredSheets: ["BCTH P.QLCL"] },
   haukiem: { key: "haukiem", label: "Báo cáo Hậu kiểm", staticPath: "/templates/CITYBUS-BAO-CAO-HAU-KIEM-BP-QLCL-DV.xlsx", requiredSheets: ["BCTH.HKVP", "BCCT.HKVP"] },
   atgt: { key: "atgt", label: "Báo cáo ATGT", staticPath: "/templates/CITYBUS-BAO-CAO-ATGT-BP-QLCL-DV.xlsx", requiredSheets: ["BCTH.HKVP", "BCCT.HKVP"] },
 };
