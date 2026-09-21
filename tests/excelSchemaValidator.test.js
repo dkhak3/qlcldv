@@ -19,3 +19,13 @@ test("evaluateSheetNames báo đúng sheet thiếu", () => {
   assert.equal(invalid.valid, false);
   assert.deepEqual(invalid.missingSheets, ["SỔ THEO DÕI VIETMAP"]);
 });
+
+
+test("GSTT chấp nhận tên sheet tháng khi Excel bỏ dấu gạch chéo", async () => {
+  const { REPORT_FILE_SCHEMAS } = await import("../src/utils/reportSchemas.js");
+  const pattern = REPORT_FILE_SCHEMAS.gstt.dynamicSheetPattern;
+  assert.equal(pattern.test("06/2026"), true);
+  assert.equal(pattern.test("06.2026"), true);
+  assert.equal(pattern.test("062026"), true);
+  assert.equal(pattern.test("132026"), false);
+});
