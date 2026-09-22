@@ -6,6 +6,7 @@ export const DEFAULT_REPORT_BOXES = [
   { id: "gstt", key: "gstt", slug: "bao-cao-ho-tro-gstt", title: "Báo cáo Hỗ trợ GSTT", description: "Tổng hợp các trường hợp hỗ trợ giám sát trực tuyến.", route: "/bao-cao-ho-tro-gstt", externalUrl: "", videoUrl: "", appearance: "cyan", icon: "headphones", hidden: false, sortOrder: 5, system: true },
   { id: "hau-kiem", key: "hau-kiem", slug: "bao-cao-hau-kiem", title: "Báo cáo tuần Hậu kiểm", description: "Gộp dữ liệu M02, đối chiếu M03 và tổng hợp vi phạm theo Chi nhánh/Tuyến.", route: "/bao-cao-hau-kiem", externalUrl: "", videoUrl: "", appearance: "emerald", icon: "clipboard-check", hidden: false, sortOrder: 6, system: true },
   { id: "atgt", key: "atgt", slug: "bao-cao-atgt", title: "Báo cáo tuần ATGT", description: "Gộp các file giám sát ATGT hằng ngày, đối chiếu M02/M03 và xuất báo cáo tuần.", route: "/bao-cao-atgt", externalUrl: "", videoUrl: "", appearance: "indigo", icon: "shield", hidden: false, sortOrder: 7, system: true },
+  { id: "daily-vehicle", key: "daily-vehicle", slug: "bao-cao-phuong-tien-hang-ngay", title: "Báo cáo phương tiện hằng ngày", description: "Đối chiếu phương tiện với GPS và tạo Ghi chú đúng theo từng xe để copy/paste.", route: "/bao-cao-phuong-tien-hang-ngay", externalUrl: "", videoUrl: "", appearance: "teal", icon: "bus", hidden: false, sortOrder: 8, system: true },
 ];
 
 export const CORE_REPORT_BOX_KEYS = Object.freeze(DEFAULT_REPORT_BOXES.map(box => box.key));
