@@ -10,9 +10,47 @@ export const DEFAULT_REPORT_BOXES = [
 ];
 
 export const CORE_REPORT_BOX_KEYS = Object.freeze(DEFAULT_REPORT_BOXES.map(box => box.key));
+export const CORE_REPORT_BOX_COUNT = DEFAULT_REPORT_BOXES.length;
+
+const CORE_REPORT_BOX_BY_KEY = new Map(DEFAULT_REPORT_BOXES.map(box => [box.key, box]));
+
+export function getCoreReportBoxDefinition(key) {
+  return CORE_REPORT_BOX_BY_KEY.get(key) || null;
+}
 
 export function isCoreReportBox(box) {
   return Boolean(box && CORE_REPORT_BOX_KEYS.includes(box.key));
+}
+
+export function mergeCoreReportBoxConfig(defaultBox, storedBox) {
+  if (!defaultBox) return storedBox;
+  if (!storedBox) return defaultBox;
+  return {
+    ...defaultBox,
+    ...storedBox,
+    key: defaultBox.key,
+    slug: defaultBox.slug,
+    route: defaultBox.route,
+    system: true,
+  };
+}
+
+export function resolveReportBoxPersistence(box) {
+  const core = getCoreReportBoxDefinition(box?.key);
+  if (!core) {
+    return {
+      key: box?.key,
+      slug: box?.slug,
+      route: `/bao-cao/${box?.slug}`,
+      system: Boolean(box?.system),
+    };
+  }
+  return {
+    key: core.key,
+    slug: core.slug,
+    route: core.route,
+    system: true,
+  };
 }
 
 export const REPORT_APPEARANCES = {
