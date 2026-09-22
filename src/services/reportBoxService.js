@@ -1,6 +1,6 @@
 import { addDoc, collection, deleteDoc, doc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import { firestore, isFirebaseConfigured } from "../lib/firebaseClient";
-import { DEFAULT_REPORT_BOXES, isCoreReportBox } from "../data/reportBoxes";
+import { DEFAULT_REPORT_BOXES, isCoreReportBox, mergeCoreReportBoxConfig, resolveReportBoxPersistence } from "../data/reportBoxes";
 import { writeAuditLog } from "./auditLogService";
 
 function toIso(value) {
@@ -34,7 +34,7 @@ export async function getReportBoxes() {
     const snapshots = await getDocs(collection(firestore, "report_boxes"));
     const stored = snapshots.docs.map(mapBox);
     const storedByKey = new Map(stored.map(item => [item.key, item]));
-    const defaults = DEFAULT_REPORT_BOXES.map(item => storedByKey.has(item.key) ? { ...item, ...storedByKey.get(item.key), system: true } : item);
+    const defaults = DEFAULT_REPORT_BOXES.map(item => mergeCoreReportBoxConfig(item, storedByKey.get(item.key)));
     const defaultKeys = new Set(DEFAULT_REPORT_BOXES.map(item => item.key));
     return [...defaults, ...stored.filter(item => !defaultKeys.has(item.key))].sort((a, b) => a.sortOrder - b.sortOrder);
   } catch (error) {
@@ -54,19 +54,20 @@ export async function getReportBoxBySlug(slug) {
 }
 
 function payload(box) {
+  const persistence = resolveReportBoxPersistence(box);
   return {
-    key: box.key,
-    slug: box.slug,
+    key: persistence.key,
+    slug: persistence.slug,
     title: box.title.trim(),
     description: box.description.trim(),
-    route: `/bao-cao/${box.slug}`,
+    route: persistence.route,
     externalUrl: box.externalUrl?.trim() || "",
     videoUrl: box.videoUrl?.trim() || "",
     appearance: box.appearance || "orange",
     icon: box.icon || "file-spreadsheet",
     hidden: Boolean(box.hidden),
     sortOrder: Number(box.sortOrder) || 99,
-    system: Boolean(box.system),
+    system: persistence.system,
     updatedAt: serverTimestamp(),
   };
 }
