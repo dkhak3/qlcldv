@@ -84,7 +84,7 @@ export async function saveReportBox(box) {
 
 export async function deleteReportBox(box) {
   if (!box?.id) throw new Error("Không xác định được Box cần xóa");
-  if (isCoreReportBox(box)) throw new Error("Không thể xóa 7 Box báo cáo chính");
+  if (isCoreReportBox(box)) throw new Error("Không thể xóa Box báo cáo chính");
   await deleteDoc(doc(firestore, "report_boxes", box.id));
   void writeAuditLog({ action: "delete", entityType: "report_box", entityId: box.id, label: box.title });
 }
