@@ -20,8 +20,8 @@ function addVehicleSheet(workbook, name, rows) {
     "Dòng xe",
     "Không hoạt động",
     row.reason ?? "",
-    "Xưởng",
-    "",
+    row.currentLocation ?? "Xưởng",
+    row.tmsProposal ?? "",
     row.workshopIn ?? "",
     row.expectedOut ?? "",
     row.note ?? "",
@@ -72,6 +72,54 @@ test("ghi chú phương tiện đúng format và không hiện ngoặc khi GHI C
   );
 });
 
+test("CSGT/Công an lấy thêm NỘI DUNG ĐỀ XUẤT TMS vào trong ngoặc", () => {
+  assert.equal(
+    buildDailyVehicleNote({
+      reason: "Sửa chữa",
+      workshopIn: "20/09/2026",
+      expectedOut: "30/09/2026",
+      currentLocation: "CSGT",
+      tmsProposal: "Chờ CSGT xử lý hồ sơ",
+      note: "",
+    }),
+    "Sửa chữa. Ngày vào xưởng 20/09/2026 - Dự kiến ra xưởng 30/09/2026 (Chờ CSGT xử lý hồ sơ)",
+  );
+
+  assert.equal(
+    buildDailyVehicleNote({
+      reason: "Sửa chữa",
+      workshopIn: "20/09/2026",
+      expectedOut: "",
+      currentLocation: "Công an",
+      tmsProposal: "Chờ hoàn tất biên bản",
+      note: "Xe tai nạn",
+    }),
+    "Sửa chữa. Ngày vào xưởng 20/09/2026 (Xe tai nạn - Chờ hoàn tất biên bản)",
+  );
+});
+
+test("NỘI DUNG ĐỀ XUẤT TMS chỉ bổ sung cho CSGT/Công an và không lặp nội dung", () => {
+  assert.equal(
+    buildDailyVehicleNote({
+      reason: "Sửa chữa",
+      currentLocation: "Xưởng",
+      tmsProposal: "Không được lấy nội dung này",
+      note: "",
+    }),
+    "Sửa chữa",
+  );
+
+  assert.equal(
+    buildDailyVehicleNote({
+      reason: "Sửa chữa",
+      currentLocation: "Đang giữ tại CSGT huyện",
+      tmsProposal: "Xe tai nạn",
+      note: "Xe tai nạn",
+    }),
+    "Sửa chữa (Xe tai nạn)",
+  );
+});
+
 test("mapping HCM và ĐỒNG THÁP dùng đúng sheet phương tiện", () => {
   const names = ["AN GIANG", "CAO LÃNH", "SA ĐÉC", "TP HỒ CHÍ MINH"];
   assert.deepEqual(resolveDailyVehicleBranchSheets("HCM", names), ["TP HỒ CHÍ MINH"]);
@@ -82,7 +130,7 @@ test("mapping HCM và ĐỒNG THÁP dùng đúng sheet phương tiện", () => {
 test("BA-VIETMAP giữ nguyên thứ tự GPS, nối đúng xe và giữ cả Ghi chú trống", async () => {
   const vehicleBook = new ExcelJS.Workbook();
   addVehicleSheet(vehicleBook, "AN GIANG", [
-    { vehicle: "50A11111", reason: "Sửa chữa", workshopIn: "01/09/2026", expectedOut: "25/09/2026", note: "" },
+    { vehicle: "50A11111", reason: "Sửa chữa", workshopIn: "01/09/2026", expectedOut: "25/09/2026", currentLocation: "CSGT", tmsProposal: "Chờ CSGT bàn giao xe", note: "" },
   ]);
   addVehicleSheet(vehicleBook, "TP HỒ CHÍ MINH", [
     { vehicle: "50H12345", reason: "Bảo dưỡng", workshopIn: "10/09/2026", expectedOut: "", note: "Xe tai nạn" },
@@ -117,7 +165,7 @@ test("BA-VIETMAP giữ nguyên thứ tự GPS, nối đúng xe và giữ cả Gh
   assert.equal(result.gpsType, "ba-vietmap");
   assert.deepEqual(result.groups.map(group => group.title), ["BÌNH ANH", "VIETMAP"]);
   assert.deepEqual(result.groups[0].rows.map(row => row.vehicle), ["50A11111", "50H12345", "66B12345", "50Z99999"]);
-  assert.equal(result.groups[0].rows[0].note, "Sửa chữa. Ngày vào xưởng 01/09/2026 - Dự kiến ra xưởng 25/09/2026");
+  assert.equal(result.groups[0].rows[0].note, "Sửa chữa. Ngày vào xưởng 01/09/2026 - Dự kiến ra xưởng 25/09/2026 (Chờ CSGT bàn giao xe)");
   assert.equal(result.groups[0].rows[1].note, "Bảo dưỡng. Ngày vào xưởng 10/09/2026 (Xe tai nạn)");
   assert.equal(result.groups[0].rows[2].matchedSheet, "CAO LÃNH");
   assert.equal(result.groups[0].rows[3].note, "");

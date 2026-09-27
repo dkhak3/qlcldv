@@ -6,6 +6,8 @@ const VEHICLE_HEADERS = {
   reason: ["NGUYEN NHAN"],
   workshopIn: ["NGAY VAO XUONG"],
   expectedOut: ["DU KIEN RA XUONG"],
+  currentLocation: ["VI TRI HIEN TAI"],
+  tmsProposal: ["NOI DUNG DE XUAT TMS"],
   note: ["GHI CHU"],
 };
 const GPS_HEADERS = {
@@ -144,6 +146,8 @@ function buildVehicleIndexForSheet(sheet, dateValue) {
       reason: cleanText(row.getCell(block.columns.reason).value),
       workshopIn: formatDailyVehicleDate(row.getCell(block.columns.workshopIn).value),
       expectedOut: formatDailyVehicleDate(row.getCell(block.columns.expectedOut).value),
+      currentLocation: block.columns.currentLocation ? cleanText(row.getCell(block.columns.currentLocation).value) : "",
+      tmsProposal: block.columns.tmsProposal ? cleanText(row.getCell(block.columns.tmsProposal).value) : "",
       note: cleanText(row.getCell(block.columns.note).value),
       sourceRow: rowNumber,
     };
@@ -154,16 +158,40 @@ function buildVehicleIndexForSheet(sheet, dateValue) {
   return { foundDate: true, missingHeaders: [], vehicles };
 }
 
+function isPoliceCurrentLocation(value) {
+  const location = normalizeDailyVehicleText(value);
+  return location.includes("CSGT") || location.includes("CONG AN");
+}
+
+function uniqueSupplementalNotes(values = []) {
+  const seen = new Set();
+  return values
+    .map(cleanText)
+    .filter(Boolean)
+    .filter(value => {
+      const key = normalizeDailyVehicleText(value);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
 export function buildDailyVehicleNote(record = {}) {
   const reason = cleanText(record.reason);
   const workshopIn = cleanText(record.workshopIn);
   const expectedOut = cleanText(record.expectedOut);
   const note = cleanText(record.note);
+  const tmsProposal = cleanText(record.tmsProposal);
+
+  const supplementalNotes = uniqueSupplementalNotes([
+    note,
+    isPoliceCurrentLocation(record.currentLocation) ? tmsProposal : "",
+  ]);
 
   let output = reason;
   if (workshopIn) output += `${output ? ". " : ""}Ngày vào xưởng ${workshopIn}`;
   if (expectedOut) output += `${output ? (workshopIn ? " - " : ". ") : ""}Dự kiến ra xưởng ${expectedOut}`;
-  if (note) output += `${output ? " " : ""}(${note})`;
+  if (supplementalNotes.length) output += `${output ? " " : ""}(${supplementalNotes.join(" - ")})`;
   return output.trim();
 }
 
@@ -378,4 +406,6 @@ export const __test__ = {
   findGpsSection,
   readGpsSection,
   selectedDateLabel,
+  isPoliceCurrentLocation,
+  uniqueSupplementalNotes,
 };
