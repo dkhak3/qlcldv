@@ -17,16 +17,18 @@ import {
 } from "../store";
 import { exportSpeed4hReport } from "../utils/exportSpeed4hReport";
 import { processSpeed4hFile } from "../utils/speed4hProcessor";
+import { countNoAnswerEmployeeNames } from "../utils/speed4hReportTotals";
 
 const SECTIONS = [
   { key: "speed", title: "1. Công việc gọi tốc độ" },
   { key: "fourHour", title: "2. Công việc gọi 4H" },
 ];
 
-const totals = rows => rows.reduce((sum, row) => ({
-  violations: sum.violations + row.violationCount,
-  noAnswers: sum.noAnswers + row.noAnswerCount,
-}), { violations: 0, noAnswers: 0 });
+const totals = rows => ({
+  violations: rows.reduce((sum, row) => sum + row.violationCount, 0),
+  noAnswerEmployees: countNoAnswerEmployeeNames(rows),
+  noAnswers: rows.reduce((sum, row) => sum + row.noAnswerCount, 0),
+});
 
 function ResultTable({ rows }) {
   if (!rows.length) return <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5"><NoData searched/></div>;
@@ -59,7 +61,7 @@ function ResultTable({ rows }) {
           <td className="px-3 py-3 text-center text-rose-600">{row.noAnswerCount || 0}</td>
         </tr>)}
       </tbody>
-      <tfoot><tr className="border-t border-violet-100 bg-violet-50 font-bold"><td className="px-3 py-3 text-center text-violet-700" colSpan="6">Tổng</td><td className="px-3 py-3 text-center text-violet-700">{sum.violations}</td><td/><td className="px-3 py-3 text-center text-rose-600">{sum.noAnswers}</td></tr></tfoot>
+      <tfoot><tr className="border-t border-violet-100 bg-violet-50 font-bold"><td className="px-3 py-3 text-center text-violet-700" colSpan="6">Tổng</td><td className="px-3 py-3 text-center text-violet-700">{sum.violations}</td><td className="px-3 py-3 text-center text-violet-700">{sum.noAnswerEmployees}</td><td className="px-3 py-3 text-center text-rose-600">{sum.noAnswers}</td></tr></tfoot>
     </table>
   </div>;
 }

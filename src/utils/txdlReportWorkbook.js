@@ -156,7 +156,7 @@ function fillRows(sheet, rows) {
   sheet.mergeCells(`A${summaryRow}:F${summaryRow}`);
   const totalLabel = total.getCell(1);
   totalLabel.value = "TỔNG";
-  totalLabel.font = { ...totalLabel.font, name: "Times New Roman", size: 12, bold: true, color: { argb: "FF000000" } };
+  totalLabel.font = { ...totalLabel.font, name: "Times New Roman", size: 12, bold: true, color: { argb: "FFFF0000" } };
   totalLabel.alignment = { ...totalLabel.alignment, horizontal: "center", vertical: "middle", wrapText: true };
 
   const noViolationTotal = total.getCell(7);
