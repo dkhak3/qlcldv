@@ -3,6 +3,7 @@ import FileSaver from "file-saver";
 import { normalizeText } from "./cameraProcessor.js";
 import { applyStandardReportHeader } from "./reportHeader.js";
 import { getReportTemplateBuffer } from "../services/reportTemplateService.js";
+import { countNoAnswerEmployeeNames } from "./speed4hReportTotals.js";
 
 const { saveAs } = FileSaver;
 const TEMPLATE_URL = "/templates/CITYBUS-BAO-CAO-TOC-DO-4H-BP-QLCL-DV.xlsx";
@@ -88,12 +89,20 @@ function fillSection(sheet, title, rows) {
   });
 
   sheet.getCell(section.totalRow, 1).value = "Tổng";
-  for (let column = 7; column <= 9; column += 1) {
-    const letter = sheet.getColumn(column).letter;
-    sheet.getCell(section.totalRow, column).value = {
-      formula: `SUM(${letter}${section.dataStart}:${letter}${section.totalRow - 1})`,
-    };
-  }
+
+  const violationLetter = sheet.getColumn(7).letter;
+  sheet.getCell(section.totalRow, 7).value = {
+    formula: `SUM(${violationLetter}${section.dataStart}:${violationLetter}${section.totalRow - 1})`,
+  };
+
+  // Cột H chứa tên nhân viên (text), nên SUM luôn trả về 0.
+  // Ghi trực tiếp số lượng tên để file tải xuống hiển thị đúng ngay cả trước khi Excel recalculation.
+  sheet.getCell(section.totalRow, 8).value = countNoAnswerEmployeeNames(rows);
+
+  const noAnswerCountLetter = sheet.getColumn(9).letter;
+  sheet.getCell(section.totalRow, 9).value = {
+    formula: `SUM(${noAnswerCountLetter}${section.dataStart}:${noAnswerCountLetter}${section.totalRow - 1})`,
+  };
 }
 
 export async function buildSpeed4hReportWorkbook(templateBuffer, { results, startDate, endDate, employees }) {

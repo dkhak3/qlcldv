@@ -100,6 +100,7 @@ test("TXDL xuất báo cáo chính với nhiều dòng và giữ phần Khó kh�
   assert.equal(sheet.getCell(summaryRow, 8).value, 4);
   assert.equal(sheet.getCell(summaryRow, 1).alignment.horizontal, "center");
   assert.equal(sheet.getCell(summaryRow, 1).font.bold, true);
+  assert.equal(sheet.getCell(summaryRow, 1).font.color.argb, "FFFF0000");
   assert.equal(sheet.getCell(summaryRow, 7).font.bold, true);
   assert.equal(sheet.getCell(summaryRow, 7).font.color.argb, "FF000000");
   assert.equal(sheet.getCell(summaryRow, 8).font.bold, true);
