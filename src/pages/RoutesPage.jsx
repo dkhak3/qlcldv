@@ -37,8 +37,12 @@ import {
   deleteRouteColumn,
   deleteRouteRow,
   findRouteMatches,
+  clearRouteColumnWidths,
+  clearRouteRowHeights,
   getReadableTextColor,
   getRouteCellFill,
+  getRouteColumnWidth,
+  getRouteRowHeight,
   insertRouteColumn,
   insertRouteRow,
   isRouteCellSelected,
@@ -47,6 +51,8 @@ import {
   routeColumnName,
   routeSelectionBounds,
   routeSelectionToText,
+  setRouteColumnWidth,
+  setRouteRowHeight,
   updateRouteCell,
 } from "../utils/routeSheet";
 import { routeRowKind, routeSheetColumnMetrics } from "../utils/routeSheetPresentation";
@@ -173,6 +179,7 @@ export default function RoutesPage() {
   const [matchIndex, setMatchIndex] = useState(0);
   const [dialog, setDialog] = useState(null);
   const gridRef = useRef(null);
+  const resizeSheetRef = useRef(null);
 
   const activeSheet = useMemo(
     () => sheets.find(sheet => sheet.id === activeId) || sheets[0] || null,
@@ -286,6 +293,107 @@ export default function RoutesPage() {
   };
 
   const replaceSheetLocal = next => setSheets(current => current.map(item => item.id === next.id ? next : item));
+
+  const saveLayoutChange = async (next, label, details = {}) => {
+    try {
+      const saved = await saveRouteSheet(next, { label, details });
+      replaceSheetLocal(saved);
+    } catch (error) {
+      toast.error(error.message || "Không thể lưu kích thước bảng");
+      await loadSheets();
+    }
+  };
+
+  const startColumnResize = (event, colIndex) => {
+    if (!manageMode || !activeSheet) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const headerCell = event.currentTarget.parentElement;
+    const measured = headerCell?.getBoundingClientRect?.().width;
+    const fallback = columnMetrics[colIndex]?.widthPx || 120;
+    const startWidth = Number.isFinite(measured) && measured > 0
+      ? measured
+      : getRouteColumnWidth(activeSheet, colIndex, fallback);
+    const startX = event.clientX;
+    let latest = activeSheet;
+
+    const onMove = moveEvent => {
+      const nextWidth = Math.max(40, Math.min(520, startWidth + moveEvent.clientX - startX));
+      latest = setRouteColumnWidth(activeSheet, colIndex, nextWidth);
+      resizeSheetRef.current = latest;
+      replaceSheetLocal(latest);
+    };
+
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      const finalSheet = resizeSheetRef.current || latest;
+      resizeSheetRef.current = null;
+      const width = getRouteColumnWidth(finalSheet, colIndex, fallback);
+      saveLayoutChange(finalSheet, `Đổi độ rộng cột ${routeColumnName(colIndex)} · ${activeSheet.name}`, {
+        column: routeColumnName(colIndex),
+        width,
+      });
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp, { once: true });
+  };
+
+  const startRowResize = (event, rowIndex) => {
+    if (!manageMode || !activeSheet) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const rowElement = document.getElementById(`route-row-${rowIndex}`);
+    const measured = rowElement?.getBoundingClientRect?.().height;
+    const kind = routeRowKind(activeSheet, rowIndex);
+    const fallback = kind === "blank" ? 24 : kind === "header" ? 44 : kind === "section" ? 40 : 36;
+    const startHeight = Number.isFinite(measured) && measured > 0
+      ? measured
+      : getRouteRowHeight(activeSheet, rowIndex, fallback);
+    const startY = event.clientY;
+    let latest = activeSheet;
+
+    const onMove = moveEvent => {
+      const nextHeight = Math.max(24, Math.min(240, startHeight + moveEvent.clientY - startY));
+      latest = setRouteRowHeight(activeSheet, rowIndex, nextHeight);
+      resizeSheetRef.current = latest;
+      replaceSheetLocal(latest);
+    };
+
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      const finalSheet = resizeSheetRef.current || latest;
+      resizeSheetRef.current = null;
+      const height = getRouteRowHeight(finalSheet, rowIndex, fallback);
+      saveLayoutChange(finalSheet, `Đổi chiều cao hàng ${rowIndex + 1} · ${activeSheet.name}`, {
+        row: rowIndex + 1,
+        height,
+      });
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp, { once: true });
+  };
+
+  const autoFitColumns = async () => {
+    if (!activeSheet) return;
+    const next = clearRouteColumnWidths(activeSheet);
+    replaceSheetLocal(next);
+    await saveLayoutChange(next, `Tự căn độ rộng cột · ${activeSheet.name}`);
+    toast.success("Đã tự căn độ rộng cột theo nội dung");
+  };
+
+  const autoFitRows = async () => {
+    if (!activeSheet) return;
+    const next = clearRouteRowHeights(activeSheet);
+    replaceSheetLocal(next);
+    await saveLayoutChange(next, `Tự căn chiều cao hàng · ${activeSheet.name}`);
+    toast.success("Đã tự căn chiều cao hàng theo nội dung");
+  };
 
   const persistSheet = async (next, label, details = {}) => {
     setBusy(true);
@@ -475,6 +583,9 @@ export default function RoutesPage() {
           </div>
 
           <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" className="secondary-button !h-9" disabled={busy} onClick={autoFitColumns}><Columns3 size={15}/>Tự căn cột</button>
+            <button type="button" className="secondary-button !h-9" disabled={busy} onClick={autoFitRows}><Rows3 size={15}/>Tự căn hàng</button>
+            <span className="hidden h-9 w-px bg-violet-200 dark:bg-violet-900 sm:block"/>
             <button type="button" className="secondary-button !h-9" disabled={busy} onClick={() => mutateStructure("add-row")}><Rows3 size={15}/>Thêm hàng</button>
             <button type="button" className="secondary-button !h-9" disabled={busy} onClick={() => mutateStructure("add-col")}><Columns3 size={15}/>Thêm cột</button>
             <button type="button" className="secondary-button !h-9" onClick={() => setDialog({ type: "rename", title: "Đổi tên sheet", description: "Tên mới sẽ hiển thị trên tab sheet.", initialName: activeSheet.name })}><Pencil size={15}/>Đổi tên sheet</button>
@@ -486,7 +597,7 @@ export default function RoutesPage() {
         </div>}
 
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-slate-400">
-          <span><b className="text-slate-600 dark:text-slate-300">Mẹo:</b> kéo chọn dọc một cột rồi Ctrl/Cmd+C để dán thẳng sang Excel.</span>
+          <span><b className="text-slate-600 dark:text-slate-300">Mẹo:</b> kéo chọn dọc để copy; khi Quản lý dữ liệu, kéo mép tên cột hoặc số hàng để đổi kích thước.</span>
           {activeSheet?.source === "excel-seed" && <span className="rounded-full bg-amber-50 px-2.5 py-1 font-bold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">Nguồn Excel</span>}
         </div>
 
@@ -497,7 +608,16 @@ export default function RoutesPage() {
                 <th className="sticky left-0 z-40 h-7 min-w-9 border-b border-r border-slate-300 bg-slate-200 text-center text-[9px] font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">#</th>
                 {Array.from({ length: activeSheet.columnCount }, (_, col) => {
                   const metric = columnMetrics[col] || { widthPx: 120 };
-                  return <th key={col} style={{ width: metric.widthPx, minWidth: metric.widthPx, maxWidth: metric.widthPx }} className="h-7 border-b border-r border-slate-300 bg-slate-200 px-1.5 text-center text-[9px] font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">{routeColumnName(col)}</th>;
+                  const width = getRouteColumnWidth(activeSheet, col, metric.widthPx);
+                  return <th key={col} style={{ width, minWidth: width, maxWidth: width }} className="relative h-7 border-b border-r border-slate-300 bg-slate-200 px-1.5 text-center text-[9px] font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+                    {routeColumnName(col)}
+                    <span
+                      role="separator"
+                      aria-label={`Đổi độ rộng cột ${routeColumnName(col)}`}
+                      onPointerDown={event => startColumnResize(event, col)}
+                      className="absolute -right-1 top-0 z-10 h-full w-2 cursor-col-resize touch-none hover:bg-cyan-400/50"
+                    />
+                  </th>;
                 })}
               </tr>
             </thead>}
@@ -512,13 +632,23 @@ export default function RoutesPage() {
                     : blank
                       ? "bg-slate-50 text-slate-300 dark:bg-slate-950 dark:text-slate-700"
                       : "bg-slate-100 text-slate-400 dark:bg-slate-800";
-                return <tr key={rowIndex} className={blank ? "h-3" : ""}>
-                  <th className={`sticky left-0 z-10 min-w-9 border-b border-r border-slate-200 px-1.5 text-center text-[9px] font-semibold dark:border-slate-800 ${blank ? "h-3 py-0" : "h-9 py-1"} ${rowNumberClass}`}>{rowIndex + 1}</th>
+                const customRowHeight = getRouteRowHeight(activeSheet, rowIndex, 0);
+                return <tr id={`route-row-${rowIndex}`} key={rowIndex} style={customRowHeight ? { height: customRowHeight } : undefined} className={blank && !customRowHeight ? "h-3" : ""}>
+                  <th className={`sticky left-0 z-10 min-w-9 border-b border-r border-slate-200 px-1.5 text-center text-[9px] font-semibold dark:border-slate-800 ${blank && !customRowHeight ? "h-3 py-0" : "py-1"} ${rowNumberClass}`}>
+                    {rowIndex + 1}
+                    {manageMode && <span
+                      role="separator"
+                      aria-label={`Đổi chiều cao hàng ${rowIndex + 1}`}
+                      onPointerDown={event => startRowResize(event, rowIndex)}
+                      className="absolute -bottom-1 left-0 z-20 h-2 w-full cursor-row-resize touch-none hover:bg-cyan-400/50"
+                    />}
+                  </th>
                   {Array.from({ length: activeSheet.columnCount }, (_, colIndex) => {
                     const value = row.cells[colIndex] ?? "";
                     const selected = isRouteCellSelected(selection, rowIndex, colIndex);
                     const matched = matchKeys.has(`${rowIndex}:${colIndex}`);
                     const metric = columnMetrics[colIndex] || { widthPx: 120 };
+                    const width = getRouteColumnWidth(activeSheet, colIndex, metric.widthPx);
                     const customCellFill = getRouteCellFill(activeSheet, rowIndex, colIndex);
                     const customTextColor = customCellFill ? getReadableTextColor(customCellFill) : "";
                     const baseClass = kind === "header"
@@ -534,9 +664,9 @@ export default function RoutesPage() {
                       id={`route-cell-${rowIndex}-${colIndex}`}
                       key={colIndex}
                       style={{
-                        width: metric.widthPx,
-                        minWidth: metric.widthPx,
-                        maxWidth: metric.widthPx,
+                        width,
+                        minWidth: width,
+                        maxWidth: width,
                         backgroundColor: customCellFill || undefined,
                         color: customTextColor || undefined,
                       }}

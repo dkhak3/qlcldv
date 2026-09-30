@@ -42,6 +42,30 @@ function normalizeRouteCellStyles(styles, rowCount, columnCount) {
   return output;
 }
 
+function normalizeDimensionMap(source, maxIndex, min, max) {
+  const input = source && typeof source === "object" && !Array.isArray(source) ? source : {};
+  const output = {};
+  Object.entries(input).forEach(([key, value]) => {
+    const index = Number(key);
+    const size = Number(value);
+    if (!Number.isInteger(index) || index < 0 || index >= maxIndex || !Number.isFinite(size)) return;
+    output[String(index)] = Math.round(Math.max(min, Math.min(max, size)));
+  });
+  return output;
+}
+
+function remapDimensionMap(source, mapper) {
+  const output = {};
+  Object.entries(source || {}).forEach(([key, value]) => {
+    const index = Number(key);
+    if (!Number.isInteger(index)) return;
+    const nextIndex = mapper(index);
+    if (nextIndex == null || nextIndex < 0) return;
+    output[String(nextIndex)] = value;
+  });
+  return output;
+}
+
 export function normalizeRouteSheet(sheet) {
   const columnCount = Math.max(1, Math.min(Number(sheet?.columnCount) || 1, 50));
   const rows = Array.isArray(sheet?.rows) ? sheet.rows : [];
@@ -54,6 +78,8 @@ export function normalizeRouteSheet(sheet) {
     columnCount,
     rows: normalizedRows,
     cellStyles: normalizeRouteCellStyles(sheet?.cellStyles, normalizedRows.length, columnCount),
+    columnWidths: normalizeDimensionMap(sheet?.columnWidths, columnCount, 40, 520),
+    rowHeights: normalizeDimensionMap(sheet?.rowHeights, normalizedRows.length, 24, 240),
   };
 }
 
@@ -78,6 +104,42 @@ export function isRouteCellSelected(selection, row, col) {
 
 export function getRouteCellFill(sheet, row, col) {
   return normalizeRouteFill(sheet?.cellStyles?.[routeCellStyleKey(row, col)]?.fill);
+}
+
+export function getRouteColumnWidth(sheet, col, fallback = 120) {
+  const custom = Number(sheet?.columnWidths?.[String(col)]);
+  return Number.isFinite(custom) ? custom : fallback;
+}
+
+export function getRouteRowHeight(sheet, row, fallback = 0) {
+  const custom = Number(sheet?.rowHeights?.[String(row)]);
+  return Number.isFinite(custom) ? custom : fallback;
+}
+
+export function setRouteColumnWidth(sheet, col, width) {
+  const normalized = normalizeRouteSheet(sheet);
+  if (!Number.isInteger(col) || col < 0 || col >= normalized.columnCount) return normalized;
+  const columnWidths = { ...normalized.columnWidths };
+  columnWidths[String(col)] = Math.round(Math.max(40, Math.min(520, Number(width) || 40)));
+  return { ...normalized, columnWidths };
+}
+
+export function setRouteRowHeight(sheet, row, height) {
+  const normalized = normalizeRouteSheet(sheet);
+  if (!Number.isInteger(row) || row < 0 || row >= normalized.rows.length) return normalized;
+  const rowHeights = { ...normalized.rowHeights };
+  rowHeights[String(row)] = Math.round(Math.max(24, Math.min(240, Number(height) || 24)));
+  return { ...normalized, rowHeights };
+}
+
+export function clearRouteColumnWidths(sheet) {
+  const normalized = normalizeRouteSheet(sheet);
+  return { ...normalized, columnWidths: {} };
+}
+
+export function clearRouteRowHeights(sheet) {
+  const normalized = normalizeRouteSheet(sheet);
+  return { ...normalized, rowHeights: {} };
 }
 
 export function getReadableTextColor(fill) {
@@ -176,7 +238,8 @@ export function insertRouteRow(sheet, afterRow = -1) {
     row: position.row >= index ? position.row + 1 : position.row,
     col: position.col,
   }));
-  return { ...normalized, rows, cellStyles };
+  const rowHeights = remapDimensionMap(normalized.rowHeights, row => row >= index ? row + 1 : row);
+  return { ...normalized, rows, cellStyles, rowHeights };
 }
 
 export function deleteRouteRow(sheet, rowIndex) {
@@ -191,7 +254,11 @@ export function deleteRouteRow(sheet, rowIndex) {
       col: position.col,
     };
   });
-  return { ...normalized, rows, cellStyles };
+  const rowHeights = remapDimensionMap(normalized.rowHeights, row => {
+    if (row === rowIndex) return null;
+    return row > rowIndex ? row - 1 : row;
+  });
+  return { ...normalized, rows, cellStyles, rowHeights };
 }
 
 export function insertRouteColumn(sheet, afterCol = -1) {
@@ -207,7 +274,8 @@ export function insertRouteColumn(sheet, afterCol = -1) {
     row: position.row,
     col: position.col >= index ? position.col + 1 : position.col,
   }));
-  return { ...normalized, columnCount: normalized.columnCount + 1, rows, cellStyles };
+  const columnWidths = remapDimensionMap(normalized.columnWidths, col => col >= index ? col + 1 : col);
+  return { ...normalized, columnCount: normalized.columnCount + 1, rows, cellStyles, columnWidths };
 }
 
 export function deleteRouteColumn(sheet, colIndex) {
@@ -226,7 +294,11 @@ export function deleteRouteColumn(sheet, colIndex) {
       col: position.col > colIndex ? position.col - 1 : position.col,
     };
   });
-  return { ...normalized, columnCount: normalized.columnCount - 1, rows, cellStyles };
+  const columnWidths = remapDimensionMap(normalized.columnWidths, col => {
+    if (col === colIndex) return null;
+    return col > colIndex ? col - 1 : col;
+  });
+  return { ...normalized, columnCount: normalized.columnCount - 1, rows, cellStyles, columnWidths };
 }
 
 export function routeSheetPayload(sheet) {
@@ -237,5 +309,7 @@ export function routeSheetPayload(sheet) {
     columnCount: normalized.columnCount,
     rows: normalized.rows.map(row => ({ cells: row.cells.map(normalizeRouteCell) })),
     cellStyles: normalized.cellStyles,
+    columnWidths: normalized.columnWidths,
+    rowHeights: normalized.rowHeights,
   };
 }

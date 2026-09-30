@@ -1,5 +1,5 @@
 import ExcelJS from "exceljs";
-import { getReadableTextColor, getRouteCellFill, normalizeRouteSheet } from "./routeSheet.js";
+import { getReadableTextColor, getRouteCellFill, getRouteColumnWidth, getRouteRowHeight, normalizeRouteSheet } from "./routeSheet.js";
 import { routeRowKind, routeSheetColumnMetrics } from "./routeSheetPresentation.js";
 
 function safeSheetName(name, used) {
@@ -85,7 +85,10 @@ export async function buildRouteWorkbook(sheets = []) {
     normalized.rows.forEach((row, rowIndex) => {
       const excelRow = worksheet.addRow(row.cells);
       const kind = routeRowKind(normalized, rowIndex);
-      excelRow.height = kind === "header" ? 30 : kind === "section" ? 27 : 24;
+      const customRowHeight = getRouteRowHeight(normalized, rowIndex, 0);
+      excelRow.height = customRowHeight
+        ? Math.round(customRowHeight * 0.75 * 10) / 10
+        : kind === "header" ? 30 : kind === "section" ? 27 : 24;
 
       excelRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
         styleDataCell(cell, kind, rowIndex);
@@ -116,7 +119,8 @@ export async function buildRouteWorkbook(sheets = []) {
     });
 
     metrics.forEach((metric, index) => {
-      worksheet.getColumn(index + 1).width = metric.excelWidth;
+      const widthPx = getRouteColumnWidth(normalized, index, metric.widthPx);
+      worksheet.getColumn(index + 1).width = Math.max(5.5, Math.min(74, Math.round((widthPx / 7) * 10) / 10));
     });
 
     worksheet.views = [{ state: "frozen", ySplit: 1, xSplit: 0 }];
