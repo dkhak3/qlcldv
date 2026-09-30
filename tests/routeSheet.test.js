@@ -19,6 +19,8 @@ import gsAtgtMienTrung from "../src/data/routeSheets/gs-atgt-mien-trung.js";
 import tuyen3517 from "../src/data/routeSheets/35-tuyen-moi-17-tuyen-cu.js";
 import tuyen84 from "../src/data/routeSheets/84-tuyen.js";
 import congThucChiaSe from "../src/data/routeSheets/cong-thuc-chia-se.js";
+import { routeColumnMetrics, routeRowKind } from "../src/utils/routeSheetPresentation.js";
+import { buildRouteWorkbook } from "../src/utils/routeWorkbook.js";
 
 const seedSheets = [
   thongTinLienHe,
@@ -126,4 +128,53 @@ test("tìm kiếm Tuyến trả đúng vị trí ô", () => {
   const first = matches[0];
   assert.ok(first.row >= 0);
   assert.ok(first.col >= 0);
+});
+
+
+test("giao diện Tuyến nhận diện header và thu gọn cột trống", () => {
+  assert.equal(routeRowKind(tuyenChiNhanh, 0), "header");
+  assert.equal(routeRowKind(tuyenHcm, 0), "header");
+
+  const compactSheet = {
+    columnCount: 4,
+    rows: [
+      ["STT", "TÊN TUYẾN", "", "COPY - PASTE VÔ BA GPS"],
+      [1, "Tuyến A", "", "Nội dung A"],
+      [2, "Tuyến B", "", "Nội dung B"],
+    ],
+  };
+  assert.equal(routeColumnMetrics(compactSheet, 2).empty, true);
+  assert.equal(routeColumnMetrics(compactSheet, 2).widthPx, 48);
+  assert.ok(routeColumnMetrics(compactSheet, 1).widthPx > 48);
+});
+
+test("xuất Excel Tuyến giữ đủ sheet, style header và hyperlink", async () => {
+  const workbook = await buildRouteWorkbook([
+    {
+      id: "demo",
+      name: "TUYẾN DEMO",
+      columnCount: 3,
+      rows: [
+        ["STT", "TÊN TUYẾN", "LINK"],
+        [1, "Tuyến A", "https://example.com"],
+      ],
+    },
+    {
+      id: "demo-2",
+      name: "THÔNG TIN",
+      columnCount: 2,
+      rows: [["TÊN", "GIÁ TRỊ"], ["A", "B"]],
+    },
+  ]);
+
+  assert.equal(workbook.worksheets.length, 2);
+  const sheet = workbook.getWorksheet("TUYẾN DEMO");
+  assert.ok(sheet);
+  assert.equal(sheet.getCell("A1").font.bold, true);
+  assert.equal(sheet.getCell("A1").alignment.horizontal, "center");
+  assert.equal(sheet.getCell("C2").value.hyperlink, "https://example.com");
+  assert.ok(sheet.getColumn(2).width > sheet.getColumn(1).width);
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  assert.ok(buffer.byteLength > 1000);
 });
