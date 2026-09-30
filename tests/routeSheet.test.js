@@ -2,17 +2,23 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   applyRouteFillToSelection,
+  clearRouteColumnWidths,
+  clearRouteRowHeights,
   countRouteSelectionCells,
   deleteRouteColumn,
   deleteRouteRow,
   findRouteMatches,
   getReadableTextColor,
   getRouteCellFill,
+  getRouteColumnWidth,
+  getRouteRowHeight,
   insertRouteColumn,
   insertRouteRow,
   routeColumnName,
   routeSelectionToText,
   routeSheetPayload,
+  setRouteColumnWidth,
+  setRouteRowHeight,
   updateRouteCell,
 } from "../src/utils/routeSheet.js";
 import thongTinLienHe from "../src/data/routeSheets/thong-tin-lien-he.js";
@@ -270,4 +276,83 @@ test("Excel Tuyến giữ màu ô tùy chỉnh", async () => {
   const sheet = workbook.getWorksheet("EXCEL COLOR");
   assert.equal(sheet.getCell("B2").fill.fgColor.argb, "FFF3E8FF");
   assert.equal(sheet.getCell("B2").font.color.argb, "FF0F172A");
+});
+
+
+test("Admin có thể đặt và tự căn lại độ rộng cột, chiều cao hàng", () => {
+  const source = {
+    id: "sizes",
+    name: "SIZES",
+    columnCount: 3,
+    rows: [["A", "B", "C"], ["1", "2", "3"]],
+  };
+
+  const sized = setRouteRowHeight(setRouteColumnWidth(source, 1, 248), 1, 72);
+  assert.equal(getRouteColumnWidth(sized, 1, 120), 248);
+  assert.equal(getRouteRowHeight(sized, 1, 36), 72);
+  assert.equal(getRouteColumnWidth(sized, 0, 120), 120);
+  assert.equal(getRouteRowHeight(sized, 0, 36), 36);
+
+  const autoColumns = clearRouteColumnWidths(sized);
+  assert.equal(getRouteColumnWidth(autoColumns, 1, 132), 132);
+  assert.equal(getRouteRowHeight(autoColumns, 1, 36), 72);
+
+  const autoRows = clearRouteRowHeights(autoColumns);
+  assert.equal(getRouteRowHeight(autoRows, 1, 36), 36);
+});
+
+test("kích thước hàng/cột dịch đúng khi thêm và xóa cấu trúc", () => {
+  let sheet = {
+    id: "size-shift",
+    name: "SIZE SHIFT",
+    columnCount: 3,
+    rows: [["A1", "B1", "C1"], ["A2", "B2", "C2"], ["A3", "B3", "C3"]],
+  };
+  sheet = setRouteColumnWidth(sheet, 1, 210);
+  sheet = setRouteRowHeight(sheet, 1, 68);
+
+  const withRow = insertRouteRow(sheet, 0);
+  assert.equal(getRouteRowHeight(withRow, 2, 0), 68);
+  assert.equal(getRouteRowHeight(withRow, 1, 0), 0);
+
+  const withoutRow = deleteRouteRow(withRow, 0);
+  assert.equal(getRouteRowHeight(withoutRow, 1, 0), 68);
+
+  const withColumn = insertRouteColumn(withoutRow, 0);
+  assert.equal(getRouteColumnWidth(withColumn, 2, 0), 210);
+  assert.equal(getRouteColumnWidth(withColumn, 1, 0), 0);
+
+  const withoutColumn = deleteRouteColumn(withColumn, 0);
+  assert.equal(getRouteColumnWidth(withoutColumn, 1, 0), 210);
+});
+
+test("payload Firestore lưu kích thước tùy chỉnh dạng sparse", () => {
+  let sheet = {
+    id: "size-payload",
+    name: "SIZE PAYLOAD",
+    columnCount: 2,
+    rows: [["A", "B"], ["C", "D"]],
+  };
+  sheet = setRouteColumnWidth(sheet, 0, 190);
+  sheet = setRouteRowHeight(sheet, 1, 64);
+
+  const payload = routeSheetPayload(sheet);
+  assert.deepEqual(payload.columnWidths, { "0": 190 });
+  assert.deepEqual(payload.rowHeights, { "1": 64 });
+});
+
+test("Excel Tuyến giữ độ rộng cột và chiều cao hàng tùy chỉnh", async () => {
+  let sheetData = {
+    id: "excel-size",
+    name: "EXCEL SIZE",
+    columnCount: 2,
+    rows: [["STT", "TÊN TUYẾN"], [1, "Tuyến A"]],
+  };
+  sheetData = setRouteColumnWidth(sheetData, 1, 280);
+  sheetData = setRouteRowHeight(sheetData, 1, 80);
+
+  const workbook = await buildRouteWorkbook([sheetData]);
+  const sheet = workbook.getWorksheet("EXCEL SIZE");
+  assert.equal(sheet.getColumn(2).width, 40);
+  assert.equal(sheet.getRow(2).height, 60);
 });
