@@ -14,8 +14,10 @@ import ReportBoxAdminPage from "./ReportBoxAdminPage";
 import SavedReportsPage from "./SavedReportsPage";
 import SavedBlogPostsPage from "./SavedBlogPostsPage";
 import UserAdminPage from "./UserAdminPage";
+import RoutesPage from "./RoutesPage";
 
 const COMPONENTS = {
+  routes: RoutesPage,
   blog: BlogPage,
   donate: DonatePage,
   "saved-reports": SavedReportsPage,

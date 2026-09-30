@@ -1,4 +1,5 @@
 export const DEFAULT_SITE_PAGES = [
+  { key: "routes", title: "Tuyến", slug: "tuyen", hidden: false, roles: ["user", "admin", "superadmin"] },
   { key: "blog", title: "Blog", slug: "blog", hidden: false, roles: ["user", "admin", "superadmin"] },
   { key: "donate", title: "Donate", slug: "donate", hidden: false, roles: ["user", "admin", "superadmin"] },
   { key: "saved-reports", title: "Báo cáo đã lưu", slug: "bao-cao-da-luu", hidden: false, roles: ["user", "admin", "superadmin"] },
