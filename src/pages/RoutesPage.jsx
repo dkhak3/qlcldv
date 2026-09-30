@@ -3,124 +3,80 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardCopy,
-  Columns3,
-  Combine,
   Download,
-  ExternalLink,
+  FileCheck2,
   FileSpreadsheet,
   LoaderCircle,
-  Eraser,
-  PaintBucket,
-  Pencil,
-  Plus,
-  Rows3,
-  Save,
-  Scissors,
+  RefreshCw,
   Search,
-  Settings2,
   Sheet,
-  Trash2,
-  Waypoints,
+  UploadCloud,
+  UserRound,
   X,
 } from "lucide-react";
+import FileSaver from "file-saver";
 import { toast } from "react-toastify";
 import { useAuth } from "../AuthContext";
 import { usePageSettings } from "../PageSettingsContext";
-import { exportRouteSheetsToExcel } from "../utils/exportRouteSheets";
 import {
-  createRouteSheet,
-  deleteRouteSheet,
-  getRouteSheets,
-  saveRouteSheet,
-} from "../services/routeSheetService";
+  getRouteWorkbookBuffer,
+  getRouteWorkbookMeta,
+  inspectRouteWorkbookFile,
+  saveRouteWorkbook,
+} from "../services/routeWorkbookService";
 import {
-  applyRouteFillToSelection,
-  countRouteSelectionCells,
-  deleteRouteColumn,
-  deleteRouteRow,
-  findRouteMatches,
-  clearRouteColumnWidths,
-  clearRouteRowHeights,
-  getReadableTextColor,
-  getRouteCellFill,
-  getRouteMergeAt,
-  getRouteColumnWidth,
-  getRouteRowHeight,
-  insertRouteColumn,
-  insertRouteRow,
-  isRouteCellSelected,
-  isRouteMergeMaster,
-  mergeRouteSelection,
-  normalizeRouteFill,
-  normalizeRouteSheet,
-  routeColumnName,
-  routeSelectionBounds,
-  routeSelectionToText,
-  setRouteColumnWidth,
-  setRouteRowHeight,
-  unmergeRouteSelection,
-  updateRouteCell,
-} from "../utils/routeSheet";
-import { routeRowKind, routeSheetColumnMetrics } from "../utils/routeSheetPresentation";
+  getPreviewMergeAt,
+  isPreviewCellSelected,
+  isPreviewMergeMaster,
+  MAX_ROUTE_WORKBOOK_BYTES,
+  parseRouteWorkbook,
+  previewSelectionCount,
+  previewSelectionToHtml,
+  previewSelectionToText,
+  routePreviewColumnName,
+} from "../utils/routeExcelPreview";
 
-const ROUTE_FILL_COLORS = [
-  { label: "Vàng", value: "#FEF3C7" },
-  { label: "Xanh lá", value: "#DCFCE7" },
-  { label: "Xanh dương", value: "#DBEAFE" },
-  { label: "Cam", value: "#FFEDD5" },
-  { label: "Đỏ", value: "#FEE2E2" },
-  { label: "Tím", value: "#F3E8FF" },
-  { label: "Xám", value: "#E2E8F0" },
-  { label: "Teal", value: "#CCFBF1" },
-];
+const { saveAs } = FileSaver;
 
-function isUrl(value) {
-  return /^https?:\/\//i.test(String(value || "").trim());
+function formatBytes(value) {
+  const bytes = Number(value) || 0;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
-function selectionHtml(sheet, selection) {
-  const bounds = routeSelectionBounds(selection);
-  if (!bounds) return "";
-  const normalized = normalizeRouteSheet(sheet);
-  const rows = [];
-  for (let row = bounds.rowStart; row <= bounds.rowEnd; row += 1) {
-    const cells = [];
-    for (let col = bounds.colStart; col <= bounds.colEnd; col += 1) {
-      const value = String(normalized.rows[row]?.cells?.[col] ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-      const merge = getRouteMergeAt(normalized, row, col);
-      if (merge && !isRouteMergeMaster(merge, row, col)) continue;
-      const fill = getRouteCellFill(normalized, row, col);
-      const color = fill ? getReadableTextColor(fill) : "";
-      const style = fill ? ` style="background-color:${fill};color:${color}"` : "";
-      const mergeAttrs = merge
-        ? ` rowspan="${merge.rowEnd - merge.rowStart + 1}" colspan="${merge.colEnd - merge.colStart + 1}"`
-        : "";
-      cells.push(`<td${mergeAttrs}${style}>${value}</td>`);
-    }
-    rows.push(`<tr>${cells.join("")}</tr>`);
-  }
-  return `<table><tbody>${rows.join("")}</tbody></table>`;
+function formatDateTime(value) {
+  if (!value) return "Chưa xác định";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Chưa xác định";
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 async function writeSelectionClipboard(sheet, selection) {
-  const text = routeSelectionToText(sheet, selection);
-  if (!text && !selection) return false;
+  const text = previewSelectionToText(sheet, selection);
+  const html = previewSelectionToHtml(sheet, selection);
+
   if (navigator.clipboard?.write && typeof ClipboardItem !== "undefined") {
     await navigator.clipboard.write([
       new ClipboardItem({
         "text/plain": new Blob([text], { type: "text/plain" }),
-        "text/html": new Blob([selectionHtml(sheet, selection)], { type: "text/html" }),
+        "text/html": new Blob([html], { type: "text/html" }),
       }),
     ]);
     return true;
   }
+
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
     return true;
   }
+
   const textarea = document.createElement("textarea");
   textarea.value = text;
   textarea.style.position = "fixed";
@@ -132,39 +88,83 @@ async function writeSelectionClipboard(sheet, selection) {
   return copied;
 }
 
-function SheetDialog({ dialog, onClose, onSubmit, busy }) {
-  const [name, setName] = useState(dialog?.initialName || "");
-  const [columns, setColumns] = useState(8);
+function UploadWorkbookDialog({ open, onClose, onUploaded, busy, currentMeta }) {
+  const [file, setFile] = useState(null);
+  const [inspection, setInspection] = useState(null);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
-    setName(dialog?.initialName || "");
-    setColumns(8);
-  }, [dialog?.type, dialog?.initialName]);
+    if (!open) return;
+    setFile(null);
+    setInspection(null);
+    setChecking(false);
+  }, [open]);
 
-  if (!dialog) return null;
-  const destructive = dialog.type === "delete";
-  return <div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950/50 p-4 backdrop-blur-sm">
-    <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900 sm:p-6">
+  if (!open) return null;
+
+  const inspect = async selected => {
+    if (!selected) return;
+    setChecking(true);
+    setFile(selected);
+    setInspection(null);
+    try {
+      const next = await inspectRouteWorkbookFile(selected);
+      setInspection(next);
+    } catch (error) {
+      setFile(null);
+      toast.error(error.message || "Không thể đọc file Excel");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return <div className="fixed inset-0 z-[90] grid place-items-center bg-slate-950/55 p-4 backdrop-blur-sm">
+    <div className="w-full max-w-xl rounded-[28px] border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900 sm:p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold text-ink dark:text-white">{dialog.title}</h2>
-          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{dialog.description}</p>
+          <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[.16em] text-emerald-600 dark:text-emerald-300"><UploadCloud size={15}/>Cập nhật dữ liệu Tuyến</span>
+          <h2 className="mt-2 text-xl font-bold text-slate-900 dark:text-white">Tải file Excel lên</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">File mới sẽ trở thành nguồn xem trước và file tải xuống cho toàn bộ người dùng.</p>
         </div>
-        <button type="button" className="grid h-9 w-9 place-items-center rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800" onClick={onClose}><X size={18}/></button>
+        <button type="button" onClick={() => !busy && onClose()} className="grid h-9 w-9 place-items-center rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"><X size={18}/></button>
       </div>
 
-      {!destructive && <div className="mt-5 space-y-4">
-        <label className="block"><span className="field-label">Tên sheet</span><input autoFocus className="field-input" value={name} onChange={event => setName(event.target.value)} placeholder="Ví dụ: TUYẾN MỚI"/></label>
-        {dialog.type === "add" && <label className="block"><span className="field-label">Số cột ban đầu</span><input className="field-input" type="number" min="1" max="30" value={columns} onChange={event => setColumns(Math.max(1, Math.min(30, Number(event.target.value) || 1)))}/></label>}
+      {currentMeta && <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
+        File hiện tại: <b className="text-slate-700 dark:text-slate-200">{currentMeta.originalName}</b> · {formatBytes(currentMeta.size)}
       </div>}
 
-      {destructive && <div className="mt-5 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm leading-6 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300">Sheet <b>“{dialog.initialName}”</b> và toàn bộ dữ liệu bên trong sẽ bị xóa khỏi Firestore.</div>}
+      <label className="mt-5 flex min-h-44 cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-emerald-200 bg-emerald-50/50 px-5 py-7 text-center transition hover:border-emerald-400 hover:bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/20 dark:hover:border-emerald-700">
+        {checking
+          ? <LoaderCircle className="animate-spin text-emerald-600" size={34}/>
+          : <FileSpreadsheet className="text-emerald-600 dark:text-emerald-300" size={38}/>}
+        <b className="mt-3 text-sm text-slate-800 dark:text-slate-100">{file?.name || "Chọn file Excel .xlsx"}</b>
+        <span className="mt-1 text-xs text-slate-400">Tối đa {Math.round(MAX_ROUTE_WORKBOOK_BYTES / 1024 / 1024)} MB</span>
+        <input
+          type="file"
+          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          className="hidden"
+          disabled={busy || checking}
+          onChange={event => inspect(event.target.files?.[0])}
+        />
+      </label>
+
+      {inspection && <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/20">
+        <div className="flex items-center gap-2 text-sm font-bold text-emerald-700 dark:text-emerald-300"><FileCheck2 size={17}/>File hợp lệ</div>
+        <div className="mt-3 grid gap-2 text-xs text-slate-600 dark:text-slate-300 sm:grid-cols-3">
+          <div><span className="block text-slate-400">Dung lượng</span><b>{formatBytes(inspection.size)}</b></div>
+          <div><span className="block text-slate-400">Số sheet</span><b>{inspection.preview.sheetNames.length}</b></div>
+          <div><span className="block text-slate-400">Số ô xem trước</span><b>{inspection.preview.totalCells.toLocaleString("vi-VN")}</b></div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {inspection.preview.sheetNames.map(name => <span key={name} className="rounded-lg border border-emerald-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 dark:border-emerald-900 dark:bg-slate-900 dark:text-slate-300">{name}</span>)}
+        </div>
+      </div>}
 
       <div className="mt-6 flex justify-end gap-2">
-        <button type="button" className="secondary-button" onClick={onClose}>Hủy</button>
-        <button type="button" disabled={busy || (!destructive && !name.trim())} className={destructive ? "inline-flex h-11 items-center gap-2 rounded-xl bg-rose-600 px-4 text-sm font-bold text-white transition hover:bg-rose-700 disabled:opacity-50" : "primary-button"} onClick={() => onSubmit({ name: name.trim(), columns })}>
-          {busy ? <LoaderCircle className="animate-spin" size={17}/> : destructive ? <Trash2 size={17}/> : <Save size={17}/>}
-          {destructive ? "Xóa sheet" : "Lưu"}
+        <button type="button" className="secondary-button" disabled={busy} onClick={onClose}>Hủy</button>
+        <button type="button" className="primary-button !bg-emerald-600 !shadow-none hover:!bg-emerald-700" disabled={!inspection || busy || checking} onClick={() => onUploaded(file, inspection)}>
+          {busy ? <LoaderCircle className="animate-spin" size={17}/> : <UploadCloud size={17}/>}
+          {busy ? "Đang tải lên..." : currentMeta ? "Thay file hiện tại" : "Đưa file lên hệ thống"}
         </button>
       </div>
     </div>
@@ -176,46 +176,50 @@ export default function RoutesPage() {
   const pageSettings = usePageSettings();
   const pageTitle = pageSettings.getPage("routes")?.title || "Tuyến";
   const canManage = auth.role === "admin" || auth.role === "superadmin";
-  const [sheets, setSheets] = useState([]);
-  const [activeId, setActiveId] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [manageMode, setManageMode] = useState(false);
-  const [customFill, setCustomFill] = useState("#FEF3C7");
+
+  const [meta, setMeta] = useState(null);
+  const [buffer, setBuffer] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [activeSheetIndex, setActiveSheetIndex] = useState(0);
   const [selection, setSelection] = useState(null);
   const [dragging, setDragging] = useState(false);
-  const [cellDraft, setCellDraft] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [matchIndex, setMatchIndex] = useState(0);
-  const [dialog, setDialog] = useState(null);
+
+  const activeSheet = preview?.sheets?.[activeSheetIndex] || null;
   const gridRef = useRef(null);
-  const resizeSheetRef = useRef(null);
 
-  const activeSheet = useMemo(
-    () => sheets.find(sheet => sheet.id === activeId) || sheets[0] || null,
-    [sheets, activeId],
-  );
-  const matches = useMemo(() => findRouteMatches(activeSheet, searchQuery), [activeSheet, searchQuery]);
-  const matchKeys = useMemo(() => new Set(matches.map(item => `${item.row}:${item.col}`)), [matches]);
-  const columnMetrics = useMemo(() => activeSheet ? routeSheetColumnMetrics(activeSheet) : [], [activeSheet]);
-  const selectedCell = selection?.anchor || null;
-  const selectedCount = countRouteSelectionCells(selection);
-
-  const loadSheets = useCallback(async () => {
+  const loadWorkbook = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getRouteSheets();
-      setSheets(data);
-      setActiveId(current => data.some(item => item.id === current) ? current : (data[0]?.id || ""));
+      const currentMeta = await getRouteWorkbookMeta();
+      if (!currentMeta) {
+        setMeta(null);
+        setBuffer(null);
+        setPreview(null);
+        return;
+      }
+      const currentBuffer = await getRouteWorkbookBuffer(currentMeta);
+      const currentPreview = await parseRouteWorkbook(currentBuffer);
+      setMeta(currentMeta);
+      setBuffer(currentBuffer);
+      setPreview(currentPreview);
+      setActiveSheetIndex(index => Math.min(index, Math.max(0, currentPreview.sheets.length - 1)));
     } catch (error) {
-      toast.error(error.message || "Không thể tải dữ liệu Tuyến");
+      setMeta(null);
+      setBuffer(null);
+      setPreview(null);
+      toast.error(error.message || "Không thể tải file Excel Tuyến");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { loadSheets(); }, [loadSheets]);
+  useEffect(() => { loadWorkbook(); }, [loadWorkbook]);
+
   useEffect(() => {
     const stop = () => setDragging(false);
     window.addEventListener("pointerup", stop);
@@ -224,40 +228,57 @@ export default function RoutesPage() {
 
   useEffect(() => {
     setSelection(null);
-    setCellDraft("");
     setSearchQuery("");
     setMatchIndex(0);
-  }, [activeId]);
+  }, [activeSheetIndex]);
 
-  useEffect(() => {
-    if (!activeSheet || !selectedCell) {
-      setCellDraft("");
-      return;
-    }
-    setCellDraft(String(activeSheet.rows[selectedCell.row]?.cells?.[selectedCell.col] ?? ""));
-  }, [activeSheet, selectedCell?.row, selectedCell?.col]);
+  const matches = useMemo(() => {
+    const needle = searchQuery.trim().toLocaleLowerCase("vi");
+    if (!needle || !activeSheet) return [];
+    const result = [];
+    activeSheet.rows.forEach((row, rowIndex) => {
+      row.forEach((cell, colIndex) => {
+        if (String(cell?.text || "").toLocaleLowerCase("vi").includes(needle)) result.push({ row: rowIndex, col: colIndex });
+      });
+    });
+    return result;
+  }, [activeSheet, searchQuery]);
 
-  const downloadAllSheets = async () => {
-    if (!sheets.length) return toast.info("Chưa có dữ liệu Tuyến để tải");
-    setExporting(true);
-    try {
-      await exportRouteSheetsToExcel(sheets);
-      toast.success(`Đã tải Excel gồm ${sheets.length} sheet`);
-    } catch (error) {
-      toast.error(error.message || "Không thể tạo file Excel");
-    } finally {
-      setExporting(false);
+  const selectedCount = previewSelectionCount(selection);
+
+  const selectCell = (event, row, col) => {
+    event.preventDefault();
+    const merge = getPreviewMergeAt(activeSheet, row, col);
+    if (event.shiftKey && selection?.anchor) {
+      setSelection({
+        anchor: selection.anchor,
+        focus: merge ? { row: merge.rowEnd, col: merge.colEnd } : { row, col },
+      });
+    } else if (merge) {
+      setSelection({
+        anchor: { row: merge.rowStart, col: merge.colStart },
+        focus: { row: merge.rowEnd, col: merge.colEnd },
+      });
+    } else {
+      setSelection({ anchor: { row, col }, focus: { row, col } });
     }
+    setDragging(true);
+  };
+
+  const extendSelection = (row, col) => {
+    if (!dragging || !selection?.anchor) return;
+    const merge = getPreviewMergeAt(activeSheet, row, col);
+    setSelection(current => ({
+      anchor: current.anchor,
+      focus: merge ? { row: merge.rowEnd, col: merge.colEnd } : { row, col },
+    }));
   };
 
   const copySelection = useCallback(async () => {
     if (!activeSheet || !selection) return toast.info("Chọn một hoặc nhiều ô trước khi copy");
     try {
-      const ok = await writeSelectionClipboard(activeSheet, selection);
-      if (!ok) throw new Error("Trình duyệt không cho phép sao chép");
-      const bounds = routeSelectionBounds(selection);
-      const vertical = bounds?.colStart === bounds?.colEnd;
-      toast.success(`Đã copy ${selectedCount} ô${vertical ? " theo hàng dọc" : ""}`);
+      await writeSelectionClipboard(activeSheet, selection);
+      toast.success(`Đã copy ${selectedCount} ô`);
     } catch (error) {
       toast.error(error.message || "Không thể copy vùng chọn");
     }
@@ -265,10 +286,9 @@ export default function RoutesPage() {
 
   useEffect(() => {
     const onKeyDown = event => {
-      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "c") return;
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "c") return;
       const tag = event.target?.tagName?.toLowerCase();
-      if (tag === "input" || tag === "textarea" || event.target?.isContentEditable) return;
-      if (!selection) return;
+      if (tag === "input" || tag === "textarea" || event.target?.isContentEditable || !selection) return;
       event.preventDefault();
       copySelection();
     };
@@ -276,500 +296,191 @@ export default function RoutesPage() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [copySelection, selection]);
 
-  const selectCell = (event, row, col) => {
-    event.preventDefault();
-    const merge = getRouteMergeAt(activeSheet, row, col);
-    const point = { row, col };
-    if (event.shiftKey && selection?.anchor) {
-      const focus = merge ? { row: merge.rowEnd, col: merge.colEnd } : point;
-      setSelection({ anchor: selection.anchor, focus });
-    } else if (merge) {
-      setSelection({
-        anchor: { row: merge.rowStart, col: merge.colStart },
-        focus: { row: merge.rowEnd, col: merge.colEnd },
-      });
-    } else {
-      setSelection({ anchor: point, focus: point });
-    }
-    setDragging(true);
-  };
-
-  const extendSelection = (row, col) => {
-    if (!dragging || !selection?.anchor) return;
-    const merge = getRouteMergeAt(activeSheet, row, col);
-    const focus = merge ? { row: merge.rowEnd, col: merge.colEnd } : { row, col };
-    setSelection(current => ({ anchor: current.anchor, focus }));
-  };
-
   const goToMatch = delta => {
-    if (!matches.length) return;
+    if (!matches.length || !activeSheet) return;
     const nextIndex = (matchIndex + delta + matches.length) % matches.length;
     const target = matches[nextIndex];
-    const merge = getRouteMergeAt(activeSheet, target.row, target.col);
-    const displayTarget = merge
-      ? { row: merge.rowStart, col: merge.colStart }
-      : target;
+    const merge = getPreviewMergeAt(activeSheet, target.row, target.col);
+    const master = merge ? { row: merge.rowStart, col: merge.colStart } : target;
     setMatchIndex(nextIndex);
     setSelection(merge
-      ? { anchor: displayTarget, focus: { row: merge.rowEnd, col: merge.colEnd } }
+      ? { anchor: master, focus: { row: merge.rowEnd, col: merge.colEnd } }
       : { anchor: target, focus: target });
     requestAnimationFrame(() => {
-      document.getElementById(`route-cell-${displayTarget.row}-${displayTarget.col}`)?.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+      document.getElementById(`excel-preview-cell-${master.row}-${master.col}`)?.scrollIntoView({
+        block: "center",
+        inline: "center",
+        behavior: "smooth",
+      });
     });
   };
 
-  const replaceSheetLocal = next => setSheets(current => current.map(item => item.id === next.id ? next : item));
-
-  const saveLayoutChange = async (next, label, details = {}) => {
+  const downloadOriginal = async () => {
+    if (!meta) return;
     try {
-      const saved = await saveRouteSheet(next, { label, details });
-      replaceSheetLocal(saved);
+      const currentBuffer = buffer || await getRouteWorkbookBuffer(meta);
+      if (!currentBuffer) throw new Error("Không tìm thấy file Excel");
+      saveAs(
+        new Blob([currentBuffer], { type: meta.contentType || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+        meta.originalName || "TUYEN.xlsx",
+      );
     } catch (error) {
-      toast.error(error.message || "Không thể lưu kích thước bảng");
-      await loadSheets();
+      toast.error(error.message || "Không thể tải file Excel");
     }
   };
 
-  const startColumnResize = (event, colIndex) => {
-    if (!manageMode || !activeSheet) return;
-    event.preventDefault();
-    event.stopPropagation();
-
-    const headerCell = event.currentTarget.parentElement;
-    const measured = headerCell?.getBoundingClientRect?.().width;
-    const fallback = columnMetrics[colIndex]?.widthPx || 120;
-    const startWidth = Number.isFinite(measured) && measured > 0
-      ? measured
-      : getRouteColumnWidth(activeSheet, colIndex, fallback);
-    const startX = event.clientX;
-    let latest = activeSheet;
-
-    const onMove = moveEvent => {
-      const nextWidth = Math.max(40, Math.min(520, startWidth + moveEvent.clientX - startX));
-      latest = setRouteColumnWidth(activeSheet, colIndex, nextWidth);
-      resizeSheetRef.current = latest;
-      replaceSheetLocal(latest);
-    };
-
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      const finalSheet = resizeSheetRef.current || latest;
-      resizeSheetRef.current = null;
-      const width = getRouteColumnWidth(finalSheet, colIndex, fallback);
-      saveLayoutChange(finalSheet, `Đổi độ rộng cột ${routeColumnName(colIndex)} · ${activeSheet.name}`, {
-        column: routeColumnName(colIndex),
-        width,
-      });
-    };
-
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp, { once: true });
-  };
-
-  const startRowResize = (event, rowIndex) => {
-    if (!manageMode || !activeSheet) return;
-    event.preventDefault();
-    event.stopPropagation();
-
-    const rowElement = document.getElementById(`route-row-${rowIndex}`);
-    const measured = rowElement?.getBoundingClientRect?.().height;
-    const kind = routeRowKind(activeSheet, rowIndex);
-    const fallback = kind === "blank" ? 24 : kind === "header" ? 44 : kind === "section" ? 40 : 36;
-    const startHeight = Number.isFinite(measured) && measured > 0
-      ? measured
-      : getRouteRowHeight(activeSheet, rowIndex, fallback);
-    const startY = event.clientY;
-    let latest = activeSheet;
-
-    const onMove = moveEvent => {
-      const nextHeight = Math.max(24, Math.min(240, startHeight + moveEvent.clientY - startY));
-      latest = setRouteRowHeight(activeSheet, rowIndex, nextHeight);
-      resizeSheetRef.current = latest;
-      replaceSheetLocal(latest);
-    };
-
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      const finalSheet = resizeSheetRef.current || latest;
-      resizeSheetRef.current = null;
-      const height = getRouteRowHeight(finalSheet, rowIndex, fallback);
-      saveLayoutChange(finalSheet, `Đổi chiều cao hàng ${rowIndex + 1} · ${activeSheet.name}`, {
-        row: rowIndex + 1,
-        height,
-      });
-    };
-
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp, { once: true });
-  };
-
-  const autoFitColumns = async () => {
-    if (!activeSheet) return;
-    const next = clearRouteColumnWidths(activeSheet);
-    replaceSheetLocal(next);
-    await saveLayoutChange(next, `Tự căn độ rộng cột · ${activeSheet.name}`);
-    toast.success("Đã tự căn độ rộng cột theo nội dung");
-  };
-
-  const autoFitRows = async () => {
-    if (!activeSheet) return;
-    const next = clearRouteRowHeights(activeSheet);
-    replaceSheetLocal(next);
-    await saveLayoutChange(next, `Tự căn chiều cao hàng · ${activeSheet.name}`);
-    toast.success("Đã tự căn chiều cao hàng theo nội dung");
-  };
-
-  const persistSheet = async (next, label, details = {}) => {
-    setBusy(true);
+  const uploadWorkbook = async (file, inspection) => {
+    setUploading(true);
     try {
-      const saved = await saveRouteSheet(next, { label, details });
-      replaceSheetLocal(saved);
-      toast.success("Đã lưu thay đổi");
-      return saved;
+      const uploadedByName = auth.profile?.fullName || auth.profile?.username || auth.user?.email?.split("@")[0] || "Admin";
+      const savedMeta = await saveRouteWorkbook(file, { inspection, uploadedByName });
+      setMeta(savedMeta);
+      setBuffer(inspection.buffer);
+      setPreview(inspection.preview);
+      setActiveSheetIndex(0);
+      setSelection(null);
+      setSearchQuery("");
+      setUploadOpen(false);
+      toast.success("Đã cập nhật file Excel Tuyến");
     } catch (error) {
-      toast.error(error.message || "Không thể lưu dữ liệu Tuyến");
-      return null;
+      toast.error(error.message || "Không thể tải file Excel lên hệ thống");
     } finally {
-      setBusy(false);
+      setUploading(false);
     }
   };
 
-  const saveCell = async () => {
-    if (!activeSheet || !selectedCell) return toast.info("Chọn ô cần sửa");
-    const next = updateRouteCell(activeSheet, selectedCell.row, selectedCell.col, cellDraft);
-    await persistSheet(next, `Sửa ô ${routeColumnName(selectedCell.col)}${selectedCell.row + 1} · ${activeSheet.name}`, {
-      cell: `${routeColumnName(selectedCell.col)}${selectedCell.row + 1}`,
-    });
-  };
+  if (loading) return <section className="mx-auto grid min-h-[65vh] max-w-7xl place-items-center px-4"><div className="text-center text-slate-500"><LoaderCircle className="mx-auto animate-spin text-emerald-600" size={38}/><p className="mt-3 text-sm">Đang mở file Excel Tuyến...</p></div></section>;
 
-  const mergeSelection = async () => {
-    if (!activeSheet || !selection) return toast.info("Kéo chọn ít nhất 2 ô cần gộp");
-    try {
-      const next = mergeRouteSelection(activeSheet, selection);
-      const bounds = routeSelectionBounds(selection);
-      const saved = await persistSheet(next, `Gộp ${selectedCount} ô · ${activeSheet.name}`, {
-        selection: bounds,
-        cellCount: selectedCount,
-      });
-      if (saved) {
-        setSelection({
-          anchor: { row: bounds.rowStart, col: bounds.colStart },
-          focus: { row: bounds.rowEnd, col: bounds.colEnd },
-        });
-        toast.success("Đã gộp vùng chọn");
-      }
-    } catch (error) {
-      toast.error(error.message || "Không thể gộp vùng chọn");
-    }
-  };
-
-  const unmergeSelection = async () => {
-    if (!activeSheet || !selection) return toast.info("Chọn ô/vùng đã gộp");
-    const before = activeSheet.mergedRanges?.length || 0;
-    const next = unmergeRouteSelection(activeSheet, selection);
-    const after = next.mergedRanges?.length || 0;
-    if (before === after) return toast.info("Vùng chọn không có ô đã gộp");
-
-    const bounds = routeSelectionBounds(selection);
-    const saved = await persistSheet(next, `Bỏ gộp ô · ${activeSheet.name}`, {
-      selection: bounds,
-      removedMerges: before - after,
-    });
-    if (saved) {
-      setSelection({ anchor: { row: bounds.rowStart, col: bounds.colStart }, focus: { row: bounds.rowStart, col: bounds.colStart } });
-      toast.success("Đã bỏ gộp");
-    }
-  };
-
-  const applySelectionFill = async fill => {
-    if (!activeSheet || !selection) return toast.info("Chọn một hoặc nhiều ô trước khi tô màu");
-    const normalizedFill = normalizeRouteFill(fill);
-    const next = applyRouteFillToSelection(activeSheet, selection, normalizedFill);
-    const bounds = routeSelectionBounds(selection);
-    const actionLabel = normalizedFill ? "Tô màu" : "Xóa màu";
-    await persistSheet(next, `${actionLabel} ${selectedCount} ô · ${activeSheet.name}`, {
-      fill: normalizedFill || null,
-      selection: bounds,
-      cellCount: selectedCount,
-    });
-  };
-
-  const mutateStructure = async (type) => {
-    if (!activeSheet) return;
-    try {
-      let next = activeSheet;
-      let label = "";
-      if (type === "add-row") {
-        next = insertRouteRow(activeSheet, selectedCell?.row ?? activeSheet.rows.length - 1);
-        label = `Thêm hàng · ${activeSheet.name}`;
-      } else if (type === "delete-row") {
-        if (!selectedCell) return toast.info("Chọn một ô trong hàng cần xóa");
-        next = deleteRouteRow(activeSheet, selectedCell.row);
-        label = `Xóa hàng ${selectedCell.row + 1} · ${activeSheet.name}`;
-      } else if (type === "add-col") {
-        next = insertRouteColumn(activeSheet, selectedCell?.col ?? activeSheet.columnCount - 1);
-        label = `Thêm cột · ${activeSheet.name}`;
-      } else if (type === "delete-col") {
-        if (!selectedCell) return toast.info("Chọn một ô trong cột cần xóa");
-        next = deleteRouteColumn(activeSheet, selectedCell.col);
-        label = `Xóa cột ${routeColumnName(selectedCell.col)} · ${activeSheet.name}`;
-      }
-      const saved = await persistSheet(next, label);
-      if (saved) setSelection(null);
-    } catch (error) {
-      toast.error(error.message || "Không thể thay đổi cấu trúc sheet");
-    }
-  };
-
-  const submitDialog = async ({ name, columns }) => {
-    if (!dialog) return;
-    setBusy(true);
-    try {
-      if (dialog.type === "add") {
-        const created = await createRouteSheet({ name, columnCount: columns, sortOrder: sheets.length + 1 });
-        await loadSheets();
-        setActiveId(created.id);
-        toast.success(`Đã tạo sheet “${name}”`);
-      } else if (dialog.type === "rename" && activeSheet) {
-        const saved = await saveRouteSheet({ ...activeSheet, name }, {
-          label: `Đổi tên sheet “${activeSheet.name}” → “${name}”`,
-          details: { oldName: activeSheet.name, newName: name },
-        });
-        replaceSheetLocal(saved);
-        toast.success("Đã đổi tên sheet");
-      } else if (dialog.type === "delete" && activeSheet) {
-        await deleteRouteSheet(activeSheet);
-        const nextSheets = sheets.filter(item => item.id !== activeSheet.id);
-        setSheets(nextSheets);
-        setActiveId(nextSheets[0]?.id || "");
-        toast.success("Đã xóa sheet");
-      }
-      setDialog(null);
-    } catch (error) {
-      toast.error(error.message || "Không thể cập nhật sheet");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (loading) return <section className="mx-auto grid min-h-[60vh] max-w-7xl place-items-center px-4"><div className="text-center text-slate-500"><LoaderCircle className="mx-auto animate-spin text-brand-500" size={36}/><p className="mt-3 text-sm">Đang tải dữ liệu {pageTitle}...</p></div></section>;
-
-  return <section className="mx-auto max-w-[1680px] px-3 py-5 sm:px-5 sm:py-7 lg:px-7">
-    <div className="rounded-[28px] border border-slate-200 bg-white shadow-card dark:border-slate-800 dark:bg-slate-900">
-      <div className="relative overflow-hidden rounded-t-[28px] border-b border-slate-200 bg-[linear-gradient(135deg,#fff7ed_0%,#ffffff_50%,#ecfeff_100%)] px-5 py-5 dark:border-slate-800 dark:bg-[linear-gradient(135deg,#21140c_0%,#0f172a_50%,#082f36_100%)] sm:px-6">
-        <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-cyan-200/30 blur-3xl dark:bg-cyan-900/20"/>
-        <div className="pointer-events-none absolute -left-16 bottom-0 h-40 w-40 rounded-full bg-orange-200/35 blur-3xl dark:bg-orange-900/20"/>
-        <div className="relative flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div className="min-w-0">
-            <span className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white/75 px-3 py-1 text-[10px] font-bold uppercase tracking-[.16em] text-brand-600 shadow-sm backdrop-blur dark:border-orange-900/50 dark:bg-slate-900/70 dark:text-orange-300"><Waypoints size={14}/>Danh mục tuyến</span>
-            <div className="mt-2.5 flex flex-wrap items-end gap-x-3 gap-y-1">
-              <h1 className="text-2xl font-bold tracking-tight text-ink dark:text-white sm:text-3xl">{pageTitle}</h1>
-              <span className="mb-1 text-xs font-medium text-slate-400">{sheets.length} sheet dữ liệu</span>
-            </div>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">Tra cứu nhanh, chọn nhiều ô rồi copy dọc sang Excel/BA GPS. Các tiêu đề và nhóm dữ liệu được làm nổi bật để dễ dò hơn.</p>
+  return <section className="mx-auto max-w-[1720px] px-3 py-5 sm:px-5 sm:py-7 lg:px-7">
+    <div className="overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-card dark:border-slate-800 dark:bg-slate-900">
+      <div className="border-b border-slate-200 bg-[linear-gradient(135deg,#f0fdf4_0%,#ffffff_48%,#ecfeff_100%)] px-5 py-5 dark:border-slate-800 dark:bg-[linear-gradient(135deg,#052e16_0%,#0f172a_48%,#083344_100%)] sm:px-6">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-[10px] font-bold uppercase tracking-[.16em] text-emerald-700 shadow-sm dark:border-emerald-900 dark:bg-slate-900/70 dark:text-emerald-300"><FileSpreadsheet size={14}/>Excel Viewer</span>
+            <h1 className="mt-2.5 text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">{pageTitle}</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">Xem trực tiếp file Excel do Admin cập nhật, chọn vùng để copy như Excel và tải lại đúng file gốc khi cần.</p>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {canManage && <button type="button" onClick={() => setManageMode(value => !value)} className={manageMode ? "primary-button !bg-violet-600 !shadow-none hover:!bg-violet-700" : "secondary-button"}><Settings2 size={17}/>{manageMode ? "Thoát quản lý" : "Quản lý dữ liệu"}</button>}
-            <button type="button" onClick={downloadAllSheets} disabled={exporting || !sheets.length} className="secondary-button"><Download size={17}/>{exporting ? "Đang tạo..." : "Tải Excel"}</button>
-            <button type="button" onClick={copySelection} disabled={!selection} className="primary-button !bg-brand-500 !shadow-orange-200 hover:!bg-brand-600 dark:!shadow-none disabled:opacity-40"><ClipboardCopy size={17}/>Copy {selectedCount ? `${selectedCount} ô` : "vùng chọn"}</button>
+          <div className="flex flex-wrap gap-2">
+            {canManage && <button type="button" onClick={() => setUploadOpen(true)} className="secondary-button"><UploadCloud size={17}/>{meta ? "Cập nhật file Excel" : "Tải file Excel lên"}</button>}
+            <button type="button" onClick={downloadOriginal} disabled={!meta} className="secondary-button"><Download size={17}/>Tải file Excel</button>
+            <button type="button" onClick={copySelection} disabled={!selection} className="primary-button !bg-emerald-600 !shadow-none hover:!bg-emerald-700 disabled:opacity-40"><ClipboardCopy size={17}/>Copy {selectedCount ? `${selectedCount} ô` : "vùng chọn"}</button>
           </div>
         </div>
+
+        {meta && <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-white/80 bg-white/70 px-3.5 py-3 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-900/60"><span className="text-[10px] font-bold uppercase tracking-[.12em] text-slate-400">File hiện tại</span><b className="mt-1 block truncate text-xs text-slate-700 dark:text-slate-200">{meta.originalName}</b></div>
+          <div className="rounded-2xl border border-white/80 bg-white/70 px-3.5 py-3 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-900/60"><span className="text-[10px] font-bold uppercase tracking-[.12em] text-slate-400">Workbook</span><b className="mt-1 block text-xs text-slate-700 dark:text-slate-200">{meta.sheetCount} sheet · {formatBytes(meta.size)}</b></div>
+          <div className="rounded-2xl border border-white/80 bg-white/70 px-3.5 py-3 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-900/60"><span className="text-[10px] font-bold uppercase tracking-[.12em] text-slate-400">Cập nhật</span><b className="mt-1 block text-xs text-slate-700 dark:text-slate-200">{formatDateTime(meta.updatedAt)}</b></div>
+          <div className="rounded-2xl border border-white/80 bg-white/70 px-3.5 py-3 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-900/60"><span className="text-[10px] font-bold uppercase tracking-[.12em] text-slate-400">Người cập nhật</span><b className="mt-1 flex items-center gap-1.5 truncate text-xs text-slate-700 dark:text-slate-200"><UserRound size={13}/>{meta.uploadedByName || "Admin"}</b></div>
+        </div>}
       </div>
 
-      <div className="border-b border-slate-200 bg-slate-50/70 px-3 py-3 dark:border-slate-800 dark:bg-slate-950/35 sm:px-4">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          {sheets.map((sheet, index) => {
-            const active = activeSheet?.id === sheet.id;
-            return <button key={sheet.id} type="button" onClick={() => setActiveId(sheet.id)} className={`group flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-left transition ${active ? "border-slate-900 bg-slate-900 text-white shadow-sm dark:border-white dark:bg-white dark:text-slate-900" : "border-slate-200 bg-white text-slate-600 hover:border-orange-200 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-orange-900/70 dark:hover:text-orange-300"}`}>
-              <span className={`grid h-6 w-6 place-items-center rounded-lg text-[10px] font-bold ${active ? "bg-brand-500 text-white dark:bg-brand-500" : "bg-slate-100 text-slate-400 group-hover:bg-orange-50 group-hover:text-brand-500 dark:bg-slate-800"}`}>{index + 1}</span>
-              <span className="max-w-52 truncate text-xs font-bold">{sheet.name}</span>
-            </button>;
-          })}
-          {manageMode && canManage && <button type="button" title="Thêm sheet" onClick={() => setDialog({ type: "add", title: "Thêm sheet mới", description: "Tạo một sheet trống để nhập dữ liệu mới." })} className="flex h-10 shrink-0 items-center gap-2 rounded-xl border border-dashed border-violet-300 bg-violet-50 px-3 text-xs font-bold text-violet-600 transition hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950/30 dark:text-violet-300"><Plus size={16}/>Thêm sheet</button>}
+      {!preview || !meta ? <div className="grid min-h-[520px] place-items-center p-6">
+        <div className="max-w-lg text-center">
+          <span className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300"><FileSpreadsheet size={32}/></span>
+          <h2 className="mt-5 text-xl font-bold text-slate-800 dark:text-white">Chưa có file Excel Tuyến</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{canManage ? "Hãy tải file .xlsx lên. Sau đó toàn bộ người dùng sẽ xem và tải đúng phiên bản file này." : "Admin/SuperAdmin chưa cập nhật file Excel. Vui lòng quay lại sau."}</p>
+          {canManage && <button type="button" onClick={() => setUploadOpen(true)} className="primary-button mx-auto mt-5 !bg-emerald-600 !shadow-none hover:!bg-emerald-700"><UploadCloud size={17}/>Tải file Excel lên</button>}
         </div>
-      </div>
-
-      <div className="p-3 sm:p-4">
-        <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      </div> : <div className="p-3 sm:p-4">
+        <div className="mb-3 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-orange-50 text-brand-600 dark:bg-orange-950/40 dark:text-orange-300"><Sheet size={18}/></span>
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300"><Sheet size={18}/></span>
             <div className="min-w-0">
-              <h2 className="truncate text-sm font-bold text-slate-800 dark:text-white">{activeSheet?.name || "Chưa có sheet"}</h2>
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
-                {activeSheet && <><span>{activeSheet.rows.length} hàng</span><span>•</span><span>{activeSheet.columnCount} cột</span></>}
-                {selection && <><span>•</span><span className="font-bold text-brand-500">Đã chọn {selectedCount} ô</span></>}
-              </div>
+              <h2 className="truncate text-sm font-bold text-slate-800 dark:text-white">{activeSheet?.name}</h2>
+              <p className="mt-0.5 text-[11px] text-slate-400">{activeSheet?.rowCount} hàng · {activeSheet?.columnCount} cột{selection ? ` · đã chọn ${selectedCount} ô` : ""}</p>
             </div>
           </div>
 
-          <div className="flex w-full max-w-2xl items-center gap-2 lg:w-auto lg:flex-1">
+          <div className="flex w-full max-w-2xl items-center gap-2 xl:w-auto xl:flex-1">
             <div className="relative min-w-0 flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/>
-              <input className="field-input !h-10 !pl-9 !text-xs" placeholder="Tìm tuyến, chi nhánh, điều độ..." value={searchQuery} onChange={event => { setSearchQuery(event.target.value); setMatchIndex(0); }}/>
+              <input className="field-input !h-10 !pl-9 !text-xs" value={searchQuery} onChange={event => { setSearchQuery(event.target.value); setMatchIndex(0); }} placeholder="Tìm nội dung trong sheet đang xem..."/>
             </div>
             {searchQuery && <span className="hidden min-w-20 text-center text-[11px] font-semibold text-slate-400 sm:block">{matches.length ? `${matchIndex + 1}/${matches.length}` : "0 kết quả"}</span>}
             <button type="button" disabled={!matches.length} onClick={() => goToMatch(-1)} className="secondary-button !h-10 !w-10 !px-0"><ChevronLeft size={16}/></button>
             <button type="button" disabled={!matches.length} onClick={() => goToMatch(1)} className="secondary-button !h-10 !w-10 !px-0"><ChevronRight size={16}/></button>
+            <button type="button" title="Tải lại file" onClick={loadWorkbook} className="secondary-button !h-10 !w-10 !px-0"><RefreshCw size={16}/></button>
           </div>
         </div>
 
-        {manageMode && canManage && activeSheet && <div className="mb-3 rounded-2xl border border-violet-200 bg-violet-50/60 p-3 dark:border-violet-900/60 dark:bg-violet-950/20">
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
-            <label className="min-w-0"><span className="field-label"><Pencil size={15}/>Ô {selectedCell ? `${routeColumnName(selectedCell.col)}${selectedCell.row + 1}` : "chưa chọn"}</span><textarea className="field-input min-h-16 resize-y py-2 text-sm" disabled={!selectedCell} value={cellDraft} onChange={event => setCellDraft(event.target.value)} placeholder="Chọn một ô trong bảng để sửa"/></label>
-            <button type="button" disabled={busy || !selectedCell} className="primary-button !bg-violet-600 !shadow-none hover:!bg-violet-700" onClick={saveCell}>{busy ? <LoaderCircle className="animate-spin" size={17}/> : <Save size={17}/>}Lưu ô</button>
-          </div>
-          <div className="mt-3 rounded-xl border border-violet-100 bg-white/70 p-2.5 dark:border-violet-900/50 dark:bg-slate-900/60">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex h-9 items-center gap-2 px-1 text-xs font-bold text-violet-700 dark:text-violet-300"><PaintBucket size={15}/>Màu ô</span>
-              {ROUTE_FILL_COLORS.map(color => <button
-                key={color.value}
-                type="button"
-                title={color.label}
-                disabled={busy || !selection}
-                onClick={() => applySelectionFill(color.value)}
-                className="h-7 w-7 rounded-lg border border-white shadow-sm ring-1 ring-slate-200 transition hover:scale-110 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-900 dark:ring-slate-700"
-                style={{ backgroundColor: color.value }}
-              />)}
-              <span className="mx-0.5 h-7 w-px bg-slate-200 dark:bg-slate-700"/>
-              <input
-                type="color"
-                value={customFill}
-                disabled={busy || !selection}
-                onChange={event => setCustomFill(event.target.value.toUpperCase())}
-                className="h-8 w-10 cursor-pointer rounded-lg border border-slate-200 bg-white p-1 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800"
-                title="Chọn màu tùy chỉnh"
-              />
-              <button type="button" className="secondary-button !h-9 !px-3" disabled={busy || !selection} onClick={() => applySelectionFill(customFill)}><PaintBucket size={15}/>Áp dụng</button>
-              <button type="button" className="secondary-button !h-9 !px-3" disabled={busy || !selection} onClick={() => applySelectionFill("")}><Eraser size={15}/>Xóa màu</button>
-            </div>
-          </div>
+        <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-inner dark:border-slate-700">
+          <div ref={gridRef} className="max-h-[72vh] overflow-auto bg-white">
+            <table className="table-fixed border-separate border-spacing-0 text-[12px] text-slate-800" style={{ width: "max-content", minWidth: "100%" }}>
+              <colgroup>
+                <col style={{ width: 44 }}/>
+                {activeSheet.columnWidths.map((width, col) => <col key={col} style={{ width: Math.max(8, width), minWidth: Math.max(8, width) }}/>)}
+              </colgroup>
+              <thead className="sticky top-0 z-30">
+                <tr>
+                  <th className="sticky left-0 z-40 h-7 w-11 border-b border-r border-slate-300 bg-[#e5e7eb] text-[10px] font-semibold text-slate-500"/>
+                  {Array.from({ length: activeSheet.columnCount }, (_, col) => <th key={col} className="h-7 border-b border-r border-slate-300 bg-[#eef1f5] px-1 text-center text-[10px] font-semibold text-slate-500">{routePreviewColumnName(col)}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {activeSheet.rows.map((row, rowIndex) => {
+                  const rowHeight = Math.max(8, activeSheet.rowHeights[rowIndex] || 24);
+                  return <tr key={rowIndex} style={{ height: rowHeight }}>
+                    <th className="sticky left-0 z-20 w-11 border-b border-r border-slate-300 bg-[#eef1f5] px-1 text-center text-[10px] font-medium text-slate-500">{rowIndex + 1}</th>
+                    {row.map((cell, colIndex) => {
+                      const merge = getPreviewMergeAt(activeSheet, rowIndex, colIndex);
+                      if (merge && !isPreviewMergeMaster(merge, rowIndex, colIndex)) return null;
+                      const selected = isPreviewCellSelected(selection, rowIndex, colIndex);
+                      const matched = matches.some(item => item.row === rowIndex && item.col === colIndex);
+                      const rowSpan = merge ? merge.rowEnd - merge.rowStart + 1 : undefined;
+                      const colSpan = merge ? merge.colEnd - merge.colStart + 1 : undefined;
+                      const css = {
+                        ...cell.css,
+                        minHeight: rowHeight,
+                        whiteSpace: cell.css?.whiteSpace || "pre-wrap",
+                        overflowWrap: "break-word",
+                      };
 
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" className="secondary-button !h-9 !border-cyan-200 !text-cyan-700 dark:!border-cyan-900 dark:!text-cyan-300" disabled={busy || selectedCount < 2} onClick={mergeSelection}><Combine size={15}/>Gộp ô</button>
-            <button type="button" className="secondary-button !h-9" disabled={busy || !selection} onClick={unmergeSelection}><Scissors size={15}/>Bỏ gộp</button>
-            <span className="hidden h-9 w-px bg-violet-200 dark:bg-violet-900 sm:block"/>
-            <button type="button" className="secondary-button !h-9" disabled={busy} onClick={autoFitColumns}><Columns3 size={15}/>Tự căn cột</button>
-            <button type="button" className="secondary-button !h-9" disabled={busy} onClick={autoFitRows}><Rows3 size={15}/>Tự căn hàng</button>
-            <span className="hidden h-9 w-px bg-violet-200 dark:bg-violet-900 sm:block"/>
-            <button type="button" className="secondary-button !h-9" disabled={busy} onClick={() => mutateStructure("add-row")}><Rows3 size={15}/>Thêm hàng</button>
-            <button type="button" className="secondary-button !h-9" disabled={busy} onClick={() => mutateStructure("add-col")}><Columns3 size={15}/>Thêm cột</button>
-            <button type="button" className="secondary-button !h-9" onClick={() => setDialog({ type: "rename", title: "Đổi tên sheet", description: "Tên mới sẽ hiển thị trên tab sheet.", initialName: activeSheet.name })}><Pencil size={15}/>Đổi tên sheet</button>
-            <span className="hidden h-9 w-px bg-violet-200 dark:bg-violet-900 sm:block"/>
-            <button type="button" className="secondary-button !h-9 !text-rose-600 dark:!text-rose-300" disabled={busy || !selectedCell} onClick={() => mutateStructure("delete-row")}><Trash2 size={15}/>Xóa hàng</button>
-            <button type="button" className="secondary-button !h-9 !text-rose-600 dark:!text-rose-300" disabled={busy || !selectedCell} onClick={() => mutateStructure("delete-col")}><Trash2 size={15}/>Xóa cột</button>
-            <button type="button" className="secondary-button !h-9 !text-rose-600 dark:!text-rose-300" disabled={sheets.length <= 1} onClick={() => setDialog({ type: "delete", title: "Xóa sheet", description: "Thao tác này không thể hoàn tác.", initialName: activeSheet.name })}><Trash2 size={15}/>Xóa sheet</button>
-          </div>
-        </div>}
-
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-slate-400">
-          <span><b className="text-slate-600 dark:text-slate-300">Mẹo:</b> kéo chọn vùng để gộp/copy; khi Quản lý dữ liệu, kéo mép tên cột hoặc số hàng để đổi kích thước.</span>
-          {activeSheet?.source === "excel-seed" && <span className="rounded-full bg-amber-50 px-2.5 py-1 font-bold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">Nguồn Excel</span>}
-        </div>
-
-        <div ref={gridRef} className="max-h-[72vh] overflow-auto rounded-2xl border border-slate-200 bg-white shadow-inner dark:border-slate-700 dark:bg-slate-900">
-          {activeSheet ? <table className="w-max min-w-full border-separate border-spacing-0 text-xs">
-            {manageMode && <thead className="sticky top-0 z-30">
-              <tr>
-                <th className="sticky left-0 z-40 h-7 min-w-9 border-b border-r border-slate-300 bg-slate-200 text-center text-[9px] font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">#</th>
-                {Array.from({ length: activeSheet.columnCount }, (_, col) => {
-                  const metric = columnMetrics[col] || { widthPx: 120 };
-                  const width = getRouteColumnWidth(activeSheet, col, metric.widthPx);
-                  return <th key={col} style={{ width, minWidth: width, maxWidth: width }} className="relative h-7 border-b border-r border-slate-300 bg-slate-200 px-1.5 text-center text-[9px] font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-                    {routeColumnName(col)}
-                    <span
-                      role="separator"
-                      aria-label={`Đổi độ rộng cột ${routeColumnName(col)}`}
-                      onPointerDown={event => startColumnResize(event, col)}
-                      className="absolute -right-1 top-0 z-10 h-full w-2 cursor-col-resize touch-none hover:bg-cyan-400/50"
-                    />
-                  </th>;
+                      return <td
+                        id={`excel-preview-cell-${rowIndex}-${colIndex}`}
+                        key={colIndex}
+                        rowSpan={rowSpan}
+                        colSpan={colSpan}
+                        onPointerDown={event => selectCell(event, rowIndex, colIndex)}
+                        onPointerEnter={() => extendSelection(rowIndex, colIndex)}
+                        style={css}
+                        className={`relative select-none border-b border-r border-slate-200 bg-white px-1.5 py-1 align-middle ${selected ? "z-10 ring-2 ring-inset ring-emerald-500" : matched ? "ring-2 ring-inset ring-amber-400" : ""}`}
+                      >
+                        {cell.hyperlink
+                          ? <a href={cell.hyperlink} target="_blank" rel="noreferrer" onPointerDown={event => event.stopPropagation()} className="underline underline-offset-2" style={{ color: cell.css?.color || "#2563EB" }}>{cell.text}</a>
+                          : cell.text}
+                      </td>;
+                    })}
+                  </tr>;
                 })}
-              </tr>
-            </thead>}
-            <tbody>
-              {activeSheet.rows.map((row, rowIndex) => {
-                const kind = routeRowKind(activeSheet, rowIndex);
-                const blank = kind === "blank";
-                const rowNumberClass = kind === "header"
-                  ? "bg-slate-800 text-white dark:bg-slate-800"
-                  : kind === "section"
-                    ? "bg-orange-100 text-brand-700 dark:bg-orange-950/60 dark:text-orange-300"
-                    : blank
-                      ? "bg-slate-50 text-slate-300 dark:bg-slate-950 dark:text-slate-700"
-                      : "bg-slate-100 text-slate-400 dark:bg-slate-800";
-                const customRowHeight = getRouteRowHeight(activeSheet, rowIndex, 0);
-                return <tr id={`route-row-${rowIndex}`} key={rowIndex} style={customRowHeight ? { height: customRowHeight } : undefined} className={blank && !customRowHeight ? "h-3" : ""}>
-                  <th className={`sticky left-0 z-10 min-w-9 border-b border-r border-slate-200 px-1.5 text-center text-[9px] font-semibold dark:border-slate-800 ${blank && !customRowHeight ? "h-3 py-0" : "py-1"} ${rowNumberClass}`}>
-                    {rowIndex + 1}
-                    {manageMode && <span
-                      role="separator"
-                      aria-label={`Đổi chiều cao hàng ${rowIndex + 1}`}
-                      onPointerDown={event => startRowResize(event, rowIndex)}
-                      className="absolute -bottom-1 left-0 z-20 h-2 w-full cursor-row-resize touch-none hover:bg-cyan-400/50"
-                    />}
-                  </th>
-                  {Array.from({ length: activeSheet.columnCount }, (_, colIndex) => {
-                    const merge = getRouteMergeAt(activeSheet, rowIndex, colIndex);
-                    if (merge && !isRouteMergeMaster(merge, rowIndex, colIndex)) return null;
-                    const value = row.cells[colIndex] ?? "";
-                    const selected = isRouteCellSelected(selection, rowIndex, colIndex);
-                    const matched = matchKeys.has(`${rowIndex}:${colIndex}`);
-                    const metric = columnMetrics[colIndex] || { widthPx: 120 };
-                    const width = merge
-                      ? Array.from({ length: merge.colEnd - merge.colStart + 1 }, (_, offset) => {
-                          const col = merge.colStart + offset;
-                          const fallback = columnMetrics[col]?.widthPx || 120;
-                          return getRouteColumnWidth(activeSheet, col, fallback);
-                        }).reduce((sum, value) => sum + value, 0)
-                      : getRouteColumnWidth(activeSheet, colIndex, metric.widthPx);
-                    const customCellFill = getRouteCellFill(activeSheet, rowIndex, colIndex);
-                    const customTextColor = customCellFill ? getReadableTextColor(customCellFill) : "";
-                    const baseClass = kind === "header"
-                      ? "bg-slate-800 font-bold text-white dark:bg-slate-800 dark:text-white"
-                      : kind === "section"
-                        ? "bg-orange-50 font-bold text-brand-700 dark:bg-orange-950/35 dark:text-orange-300"
-                        : blank
-                          ? "bg-slate-50/70 text-slate-300 dark:bg-slate-950/50 dark:text-slate-700"
-                          : rowIndex % 2 === 0
-                            ? "bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-300"
-                            : "bg-slate-50/65 text-slate-700 dark:bg-slate-900/80 dark:text-slate-300";
-                    return <td
-                      id={`route-cell-${rowIndex}-${colIndex}`}
-                      key={colIndex}
-                      rowSpan={merge ? merge.rowEnd - merge.rowStart + 1 : undefined}
-                      colSpan={merge ? merge.colEnd - merge.colStart + 1 : undefined}
-                      style={{
-                        width,
-                        minWidth: width,
-                        maxWidth: width,
-                        backgroundColor: customCellFill || undefined,
-                        color: customTextColor || undefined,
-                      }}
-                      onPointerDown={event => selectCell(event, rowIndex, colIndex)}
-                      onPointerEnter={() => extendSelection(rowIndex, colIndex)}
-                      className={`relative select-none whitespace-pre-wrap border-b border-r border-slate-200 align-middle transition dark:border-slate-800 ${merge ? "text-center font-semibold" : ""} ${blank ? "h-3 px-1 py-0" : "px-2.5 py-2 leading-[1.25rem]"} ${selected ? "!bg-cyan-100 !text-cyan-950 ring-2 ring-inset ring-cyan-500 dark:!bg-cyan-950/80 dark:!text-cyan-50" : matched ? "!bg-amber-100 !text-slate-900 dark:!bg-amber-950/60 dark:!text-white" : baseClass}`}
-                    >
-                      {isUrl(value) ? <a
-                        href={String(value)}
-                        target="_blank"
-                        rel="noreferrer"
-                        onPointerDown={event => event.stopPropagation()}
-                        style={{ color: customTextColor || undefined }}
-                        className={`inline-flex items-center gap-1 break-all font-semibold underline underline-offset-2 ${customCellFill ? "decoration-current" : kind === "header" ? "text-cyan-200 decoration-cyan-300/50" : kind === "section" ? "text-brand-700 decoration-orange-300 dark:text-orange-300" : "text-blue-600 decoration-blue-300 dark:text-blue-300"}`}
-                      ><span>{String(value)}</span><ExternalLink size={11} className="shrink-0"/></a> : String(value)}
-                    </td>;
-                  })}
-                </tr>;
-              })}
-            </tbody>
-          </table> : <div className="grid min-h-[480px] place-items-center text-sm text-slate-400"><div className="text-center"><FileSpreadsheet className="mx-auto mb-3" size={34}/><p>Chưa có sheet dữ liệu.</p></div></div>}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center gap-1 overflow-x-auto border-t border-slate-300 bg-[#f3f4f6] px-2 py-1.5">
+            <span className="mr-1 shrink-0 px-2 text-[10px] font-bold uppercase tracking-[.12em] text-slate-400">Sheets</span>
+            {preview.sheets.map((sheet, index) => <button
+              key={sheet.id}
+              type="button"
+              onClick={() => setActiveSheetIndex(index)}
+              className={`shrink-0 rounded-md border px-3 py-1.5 text-[11px] font-semibold transition ${index === activeSheetIndex ? "border-emerald-500 bg-white text-emerald-700 shadow-sm" : "border-transparent text-slate-500 hover:border-slate-300 hover:bg-white"}`}
+            >{sheet.name}</button>)}
+          </div>
         </div>
-      </div>
+
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-slate-400">
+          <span>Kéo chuột chọn vùng rồi bấm <b className="text-slate-600 dark:text-slate-300">Copy</b> hoặc Ctrl/Cmd+C để dán sang Excel.</span>
+          <span>Đang xem file gốc · không chỉnh sửa dữ liệu trên web</span>
+        </div>
+      </div>}
     </div>
 
-    <SheetDialog dialog={dialog} onClose={() => !busy && setDialog(null)} onSubmit={submitDialog} busy={busy}/>
+    <UploadWorkbookDialog
+      open={uploadOpen}
+      currentMeta={meta}
+      busy={uploading}
+      onClose={() => setUploadOpen(false)}
+      onUploaded={uploadWorkbook}
+    />
   </section>;
 }
