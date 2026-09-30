@@ -1,4 +1,5 @@
 import { adminDb, onlyPost, parseBody, requireRole, sendApiError } from "./_firebaseAdmin.js";
+import { collectCommentTreeIds, findOrphanCommentIds } from "./_blogCommentTree.js";
 
 const COLLECTIONS_BY_POST = [
   "blog_post_likes",
@@ -47,17 +48,54 @@ async function deleteComment(commentId, caller) {
     throw Object.assign(new Error("Bạn không có quyền xóa bình luận này"), { status: 403 });
   }
 
-  const [reactions, edits] = await Promise.all([
-    adminDb.collection("blog_comment_reactions").where("commentId", "==", commentId).get(),
-    adminDb.collection("blog_comment_edits").where("commentId", "==", commentId).get(),
+  const postId = String(comment.postId || "");
+  const commentsSnapshot = postId
+    ? await adminDb.collection("blog_comments").where("postId", "==", postId).get()
+    : null;
+
+  const comments = commentsSnapshot
+    ? commentsSnapshot.docs.map(item => ({ id: item.id, ...item.data(), ref: item.ref }))
+    : [{ id: commentId, ...comment, ref: commentReference }];
+
+  const treeIds = new Set(collectCommentTreeIds(comments, commentId));
+  if (!treeIds.size) treeIds.add(commentId);
+
+  const [reactions, edits] = postId
+    ? await Promise.all([
+        adminDb.collection("blog_comment_reactions").where("postId", "==", postId).get(),
+        adminDb.collection("blog_comment_edits").where("postId", "==", postId).get(),
+      ])
+    : await Promise.all([
+        adminDb.collection("blog_comment_reactions").where("commentId", "==", commentId).get(),
+        adminDb.collection("blog_comment_edits").where("commentId", "==", commentId).get(),
+      ]);
+
+  const commentReferences = comments
+    .filter(item => treeIds.has(item.id))
+    .map(item => item.ref || adminDb.collection("blog_comments").doc(item.id));
+
+  const reactionReferences = reactions.docs
+    .filter(item => treeIds.has(String(item.data().commentId || "")))
+    .map(item => item.ref);
+
+  const editReferences = edits.docs
+    .filter(item => treeIds.has(String(item.data().commentId || "")))
+    .map(item => item.ref);
+
+  const deleted = await commitDeletes([
+    ...commentReferences,
+    ...reactionReferences,
+    ...editReferences,
   ]);
-  const references = [
-    commentReference,
-    ...reactions.docs.map(item => item.ref),
-    ...edits.docs.map(item => item.ref),
-  ];
-  const deleted = await commitDeletes(references);
-  return { deleted, commentId };
+
+  return {
+    deleted,
+    commentId,
+    deletedComments: commentReferences.length,
+    deletedReplies: Math.max(0, commentReferences.length - 1),
+    deletedReactions: reactionReferences.length,
+    deletedEdits: editReferences.length,
+  };
 }
 
 async function cleanupOrphans() {
@@ -70,16 +108,20 @@ async function cleanupOrphans() {
     adminDb.collection("blog_comment_edits").get(),
   ]);
   const postIds = new Set(posts.docs.map(item => item.id));
-  const validComments = comments.docs.filter(item => postIds.has(item.data().postId));
-  const validCommentIds = new Set(validComments.map(item => item.id));
+  const commentItems = comments.docs.map(item => ({ id: item.id, ...item.data(), ref: item.ref }));
+  const orphanCommentIds = new Set(findOrphanCommentIds(commentItems, postIds));
+  const validCommentIds = new Set(commentItems.filter(item => !orphanCommentIds.has(item.id)).map(item => item.id));
   const references = [
-    ...comments.docs.filter(item => !postIds.has(item.data().postId)).map(item => item.ref),
+    ...commentItems.filter(item => orphanCommentIds.has(item.id)).map(item => item.ref),
     ...likes.docs.filter(item => !postIds.has(item.data().postId)).map(item => item.ref),
     ...bookmarks.docs.filter(item => !postIds.has(item.data().postId)).map(item => item.ref),
     ...reactions.docs.filter(item => !postIds.has(item.data().postId) || !validCommentIds.has(item.data().commentId)).map(item => item.ref),
     ...edits.docs.filter(item => !postIds.has(item.data().postId) || !validCommentIds.has(item.data().commentId)).map(item => item.ref),
   ];
-  return { deleted: await commitDeletes(references) };
+  return {
+    deleted: await commitDeletes(references),
+    orphanComments: orphanCommentIds.size,
+  };
 }
 
 export default async function handler(req, res) {

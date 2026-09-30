@@ -169,10 +169,7 @@ export default function BlogComments({ postId }) {
   }, [load]);
 
   const commentById = useMemo(() => new Map(comments.map(item => [item.id, item])), [comments]);
-  const rootComments = useMemo(() => {
-    const ids = new Set(comments.map(item => item.id));
-    return comments.filter(item => !item.parentId || !ids.has(item.parentId));
-  }, [comments]);
+  const rootComments = useMemo(() => comments.filter(item => !item.parentId), [comments]);
   const repliesFor = parentId => comments.filter(item => item.parentId === parentId);
   const canEdit = comment => comment.ownerId === auth.user?.uid || (auth.role === "admin" && comment.ownerRole === "user");
   const canDelete = comment => comment.ownerId === auth.user?.uid
@@ -222,10 +219,13 @@ export default function BlogComments({ postId }) {
     if (!deleteTarget) return;
     setBusy(true);
     try {
-      await deleteBlogComment(deleteTarget.id);
+      const result = await deleteBlogComment(deleteTarget.id);
       await load();
       setDeleteTarget(null);
-      toast.success("Đã xóa vĩnh viễn bình luận, lịch sử sửa và cảm xúc liên quan");
+      const deletedReplies = Number(result?.deletedReplies) || 0;
+      toast.success(deletedReplies
+        ? `Đã xóa bình luận và ${deletedReplies} phản hồi liên quan`
+        : "Đã xóa bình luận và dữ liệu liên quan");
     } catch (error) {
       toast.error(error.message || "Không thể xóa bình luận");
     } finally {
@@ -312,7 +312,17 @@ export default function BlogComments({ postId }) {
         ? <div className="mt-6 space-y-5">{rootComments.map(comment => <div key={comment.id} className="space-y-3">{renderComment(comment)}{repliesFor(comment.id).map(reply => renderComment(reply, true))}</div>)}</div>
         : <div className="mt-6 rounded-2xl border border-dashed border-slate-300 px-5 py-10 text-center dark:border-slate-700"><MessageCircle className="mx-auto text-slate-300" size={34}/><b className="mt-3 block text-sm text-slate-600 dark:text-slate-300">Chưa có bình luận</b><span className="mt-1 block text-xs text-slate-400">Hãy là người đầu tiên chia sẻ ý kiến về bài viết.</span></div>}
 
-    {deleteTarget && <ConfirmDialog danger title="Xóa bình luận?" description={`Bình luận của ${deleteTarget.ownerName} sẽ bị xóa khỏi bài viết.`} confirmLabel="Xóa bình luận" busy={busy} onClose={() => setDeleteTarget(null)} onConfirm={remove}/>} 
+    {deleteTarget && <ConfirmDialog
+      danger
+      title="Xóa bình luận?"
+      description={repliesFor(deleteTarget.id).length
+        ? `Bình luận của ${deleteTarget.ownerName} và toàn bộ ${repliesFor(deleteTarget.id).length} phản hồi bên dưới sẽ bị xóa vĩnh viễn.`
+        : `Bình luận của ${deleteTarget.ownerName} sẽ bị xóa vĩnh viễn khỏi bài viết.`}
+      confirmLabel="Xóa bình luận"
+      busy={busy}
+      onClose={() => setDeleteTarget(null)}
+      onConfirm={remove}
+    />} 
     {peopleDialog && <BlogPeopleDialog {...peopleDialog} onClose={() => setPeopleDialog(null)}/>} 
   </section>;
 }
