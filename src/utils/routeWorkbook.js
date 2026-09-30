@@ -1,5 +1,5 @@
 import ExcelJS from "exceljs";
-import { normalizeRouteSheet } from "./routeSheet.js";
+import { getReadableTextColor, getRouteCellFill, normalizeRouteSheet } from "./routeSheet.js";
 import { routeRowKind, routeSheetColumnMetrics } from "./routeSheetPresentation.js";
 
 function safeSheetName(name, used) {
@@ -30,6 +30,10 @@ function applyBorder(cell, color = "FFD7DEE8") {
 
 function isUrl(value) {
   return /^https?:\/\//i.test(String(value || "").trim());
+}
+
+function colorToArgb(value) {
+  return `FF${String(value || "").replace("#", "").toUpperCase()}`;
 }
 
 function styleDataCell(cell, kind, rowIndex) {
@@ -83,7 +87,7 @@ export async function buildRouteWorkbook(sheets = []) {
       const kind = routeRowKind(normalized, rowIndex);
       excelRow.height = kind === "header" ? 30 : kind === "section" ? 27 : 24;
 
-      excelRow.eachCell({ includeEmpty: true }, cell => {
+      excelRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
         styleDataCell(cell, kind, rowIndex);
         if (isUrl(cell.value)) {
           const url = String(cell.value);
@@ -93,6 +97,19 @@ export async function buildRouteWorkbook(sheets = []) {
             bold: kind === "header" || kind === "section",
             color: { argb: kind === "section" ? "FFFFFFFF" : "FF2563EB" },
             underline: true,
+          };
+        }
+
+        const customFill = getRouteCellFill(normalized, rowIndex, colNumber - 1);
+        if (customFill) {
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: colorToArgb(customFill) },
+          };
+          cell.font = {
+            ...cell.font,
+            color: { argb: colorToArgb(getReadableTextColor(customFill)) },
           };
         }
       });
