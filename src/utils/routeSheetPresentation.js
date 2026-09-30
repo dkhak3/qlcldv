@@ -75,7 +75,7 @@ export function routeColumnMetrics(sheet, colIndex) {
     .map(row => text(row.cells[colIndex]))
     .filter(Boolean);
 
-  if (!values.length) return { widthPx: 48, excelWidth: 7, empty: true };
+  if (!values.length) return { widthPx: 26, excelWidth: 4, empty: true };
 
   const longest = Math.max(...values.map(value => Math.max(...value.split(/\r?\n/).map(line => line.length))));
   const numericRatio = values.filter(value => /^\d+(?:[.,-]\d+)*$/.test(value)).length / values.length;
@@ -90,7 +90,7 @@ export function routeColumnMetrics(sheet, colIndex) {
   else widthPx = 286;
 
   const density = values.length / Math.max(normalized.rows.length, 1);
-  if (density < 0.08 && longest <= 18) widthPx = Math.min(widthPx, 92);
+  if (density < 0.08 && longest <= 18) widthPx = Math.min(widthPx, 72);
 
   return {
     widthPx,

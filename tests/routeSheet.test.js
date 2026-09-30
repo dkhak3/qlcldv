@@ -144,8 +144,8 @@ test("giao diện Tuyến nhận diện header và thu gọn cột trống", () 
     ],
   };
   assert.equal(routeColumnMetrics(compactSheet, 2).empty, true);
-  assert.equal(routeColumnMetrics(compactSheet, 2).widthPx, 48);
-  assert.ok(routeColumnMetrics(compactSheet, 1).widthPx > 48);
+  assert.equal(routeColumnMetrics(compactSheet, 2).widthPx, 26);
+  assert.ok(routeColumnMetrics(compactSheet, 1).widthPx > 26);
 });
 
 test("xuất Excel Tuyến giữ đủ sheet, style header và hyperlink", async () => {
