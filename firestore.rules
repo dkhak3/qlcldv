@@ -160,6 +160,16 @@ service cloud.firestore {
         allow create, update, delete: if isEditor();
       }
 
+      match /route_workbooks/{workbookId} {
+        allow read: if signedIn();
+        allow create, update, delete: if isEditor();
+      }
+
+      match /route_workbook_chunks/{chunkId} {
+        allow read: if signedIn();
+        allow create, update, delete: if isEditor();
+      }
+
       match /report_templates/{templateId} {
         allow read: if signedIn();
         allow create, update: if isSuperAdmin();
