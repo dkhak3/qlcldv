@@ -155,6 +155,11 @@ service cloud.firestore {
         allow create, update, delete: if isSuperAdmin();
       }
 
+      match /route_sheets/{sheetId} {
+        allow read: if signedIn();
+        allow create, update, delete: if isEditor();
+      }
+
       match /report_templates/{templateId} {
         allow read: if signedIn();
         allow create, update: if isSuperAdmin();

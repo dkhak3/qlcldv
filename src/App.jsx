@@ -36,6 +36,7 @@ import AuthorBlogPage from "./pages/AuthorBlogPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import ReportTemplateAdminPage from "./pages/ReportTemplateAdminPage";
 import AuditLogAdminPage from "./pages/AuditLogAdminPage";
+import RoutesPage from "./pages/RoutesPage";
 
 export default function App() {
   return (
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="/bao-cao-hau-kiem" element={<ProtectedRoute><HauKiemPage /></ProtectedRoute>} />
         <Route path="/bao-cao-atgt" element={<ProtectedRoute><AtgtPage /></ProtectedRoute>} />
         <Route path="/bao-cao-phuong-tien-hang-ngay" element={<ProtectedRoute><DailyVehiclePage /></ProtectedRoute>} />
+        <Route path="/tuyen" element={<ProtectedRoute><RoutesPage /></ProtectedRoute>} />
         <Route path="/blog" element={<ProtectedRoute><ManagedPageGate pageKey="blog"><BlogPage /></ManagedPageGate></ProtectedRoute>} />
         <Route path="/blog/:slug" element={<ProtectedRoute><BlogDetailPage /></ProtectedRoute>} />
         <Route path="/tac-gia/:authorId" element={<ProtectedRoute><AuthorBlogPage /></ProtectedRoute>} />
