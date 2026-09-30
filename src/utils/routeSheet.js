@@ -66,6 +66,44 @@ function remapDimensionMap(source, mapper) {
   return output;
 }
 
+function rangesIntersect(a, b) {
+  return a.rowStart <= b.rowEnd
+    && a.rowEnd >= b.rowStart
+    && a.colStart <= b.colEnd
+    && a.colEnd >= b.colStart;
+}
+
+function normalizeMergedRanges(source, rowCount, columnCount) {
+  const input = Array.isArray(source) ? source : [];
+  const output = [];
+
+  input.forEach(item => {
+    const rowStart = Math.max(0, Math.min(rowCount - 1, Number(item?.rowStart)));
+    const rowEnd = Math.max(0, Math.min(rowCount - 1, Number(item?.rowEnd)));
+    const colStart = Math.max(0, Math.min(columnCount - 1, Number(item?.colStart)));
+    const colEnd = Math.max(0, Math.min(columnCount - 1, Number(item?.colEnd)));
+    if (![rowStart, rowEnd, colStart, colEnd].every(Number.isInteger)) return;
+
+    const range = {
+      rowStart: Math.min(rowStart, rowEnd),
+      rowEnd: Math.max(rowStart, rowEnd),
+      colStart: Math.min(colStart, colEnd),
+      colEnd: Math.max(colStart, colEnd),
+    };
+    if (range.rowStart === range.rowEnd && range.colStart === range.colEnd) return;
+    if (output.some(existing => rangesIntersect(existing, range))) return;
+    output.push(range);
+  });
+
+  return output.sort((a, b) => a.rowStart - b.rowStart || a.colStart - b.colStart);
+}
+
+function remapMergedRanges(ranges, transform) {
+  return (ranges || [])
+    .map(range => transform({ ...range }))
+    .filter(Boolean);
+}
+
 export function normalizeRouteSheet(sheet) {
   const columnCount = Math.max(1, Math.min(Number(sheet?.columnCount) || 1, 50));
   const rows = Array.isArray(sheet?.rows) ? sheet.rows : [];
@@ -80,6 +118,7 @@ export function normalizeRouteSheet(sheet) {
     cellStyles: normalizeRouteCellStyles(sheet?.cellStyles, normalizedRows.length, columnCount),
     columnWidths: normalizeDimensionMap(sheet?.columnWidths, columnCount, 40, 520),
     rowHeights: normalizeDimensionMap(sheet?.rowHeights, normalizedRows.length, 24, 240),
+    mergedRanges: normalizeMergedRanges(sheet?.mergedRanges, normalizedRows.length, columnCount),
   };
 }
 
@@ -100,6 +139,72 @@ export function isRouteCellSelected(selection, row, col) {
     && row <= bounds.rowEnd
     && col >= bounds.colStart
     && col <= bounds.colEnd);
+}
+
+export function getRouteMergeAt(sheet, row, col) {
+  const ranges = Array.isArray(sheet?.mergedRanges) ? sheet.mergedRanges : [];
+  return ranges.find(range => row >= range.rowStart
+    && row <= range.rowEnd
+    && col >= range.colStart
+    && col <= range.colEnd) || null;
+}
+
+export function isRouteMergeMaster(range, row, col) {
+  return Boolean(range && range.rowStart === row && range.colStart === col);
+}
+
+export function mergeRouteSelection(sheet, selection) {
+  const normalized = normalizeRouteSheet(sheet);
+  const bounds = routeSelectionBounds(selection);
+  if (!bounds) throw new Error("Chọn vùng cần gộp");
+  if (bounds.rowStart === bounds.rowEnd && bounds.colStart === bounds.colEnd) {
+    throw new Error("Cần chọn ít nhất 2 ô để gộp");
+  }
+  if (
+    bounds.rowStart < 0
+    || bounds.colStart < 0
+    || bounds.rowEnd >= normalized.rows.length
+    || bounds.colEnd >= normalized.columnCount
+  ) {
+    throw new Error("Vùng chọn nằm ngoài dữ liệu sheet");
+  }
+
+  const overlaps = normalized.mergedRanges.filter(range => rangesIntersect(range, bounds));
+  if (overlaps.length) throw new Error("Vùng chọn đang giao với ô đã gộp. Hãy Bỏ gộp trước.");
+
+  const populated = [];
+  for (let row = bounds.rowStart; row <= bounds.rowEnd; row += 1) {
+    for (let col = bounds.colStart; col <= bounds.colEnd; col += 1) {
+      const value = String(normalized.rows[row]?.cells?.[col] ?? "").trim();
+      if (value) populated.push({ row, col, value });
+    }
+  }
+  if (populated.length > 1) {
+    throw new Error("Vùng gộp có nhiều ô chứa dữ liệu. Hãy giữ nội dung ở một ô để tránh mất dữ liệu.");
+  }
+
+  const rows = normalized.rows.map(row => ({ cells: [...row.cells] }));
+  if (populated.length === 1) {
+    const item = populated[0];
+    rows[bounds.rowStart].cells[bounds.colStart] = item.value;
+    if (item.row !== bounds.rowStart || item.col !== bounds.colStart) rows[item.row].cells[item.col] = "";
+  }
+
+  return {
+    ...normalized,
+    rows,
+    mergedRanges: normalizeMergedRanges([...normalized.mergedRanges, bounds], rows.length, normalized.columnCount),
+  };
+}
+
+export function unmergeRouteSelection(sheet, selection) {
+  const normalized = normalizeRouteSheet(sheet);
+  const bounds = routeSelectionBounds(selection);
+  if (!bounds) return normalized;
+  return {
+    ...normalized,
+    mergedRanges: normalized.mergedRanges.filter(range => !rangesIntersect(range, bounds)),
+  };
 }
 
 export function getRouteCellFill(sheet, row, col) {
@@ -239,7 +344,16 @@ export function insertRouteRow(sheet, afterRow = -1) {
     col: position.col,
   }));
   const rowHeights = remapDimensionMap(normalized.rowHeights, row => row >= index ? row + 1 : row);
-  return { ...normalized, rows, cellStyles, rowHeights };
+  const mergedRanges = remapMergedRanges(normalized.mergedRanges, range => {
+    if (index <= range.rowStart) {
+      range.rowStart += 1;
+      range.rowEnd += 1;
+    } else if (index <= range.rowEnd) {
+      range.rowEnd += 1;
+    }
+    return range;
+  });
+  return { ...normalized, rows, cellStyles, rowHeights, mergedRanges };
 }
 
 export function deleteRouteRow(sheet, rowIndex) {
@@ -258,7 +372,18 @@ export function deleteRouteRow(sheet, rowIndex) {
     if (row === rowIndex) return null;
     return row > rowIndex ? row - 1 : row;
   });
-  return { ...normalized, rows, cellStyles, rowHeights };
+  const mergedRanges = remapMergedRanges(normalized.mergedRanges, range => {
+    if (rowIndex < range.rowStart) {
+      range.rowStart -= 1;
+      range.rowEnd -= 1;
+      return range;
+    }
+    if (rowIndex > range.rowEnd) return range;
+    if (range.rowStart === range.rowEnd) return null;
+    range.rowEnd -= 1;
+    return range.rowStart === range.rowEnd && range.colStart === range.colEnd ? null : range;
+  });
+  return { ...normalized, rows, cellStyles, rowHeights, mergedRanges };
 }
 
 export function insertRouteColumn(sheet, afterCol = -1) {
@@ -275,7 +400,16 @@ export function insertRouteColumn(sheet, afterCol = -1) {
     col: position.col >= index ? position.col + 1 : position.col,
   }));
   const columnWidths = remapDimensionMap(normalized.columnWidths, col => col >= index ? col + 1 : col);
-  return { ...normalized, columnCount: normalized.columnCount + 1, rows, cellStyles, columnWidths };
+  const mergedRanges = remapMergedRanges(normalized.mergedRanges, range => {
+    if (index <= range.colStart) {
+      range.colStart += 1;
+      range.colEnd += 1;
+    } else if (index <= range.colEnd) {
+      range.colEnd += 1;
+    }
+    return range;
+  });
+  return { ...normalized, columnCount: normalized.columnCount + 1, rows, cellStyles, columnWidths, mergedRanges };
 }
 
 export function deleteRouteColumn(sheet, colIndex) {
@@ -298,7 +432,18 @@ export function deleteRouteColumn(sheet, colIndex) {
     if (col === colIndex) return null;
     return col > colIndex ? col - 1 : col;
   });
-  return { ...normalized, columnCount: normalized.columnCount - 1, rows, cellStyles, columnWidths };
+  const mergedRanges = remapMergedRanges(normalized.mergedRanges, range => {
+    if (colIndex < range.colStart) {
+      range.colStart -= 1;
+      range.colEnd -= 1;
+      return range;
+    }
+    if (colIndex > range.colEnd) return range;
+    if (range.colStart === range.colEnd) return null;
+    range.colEnd -= 1;
+    return range.rowStart === range.rowEnd && range.colStart === range.colEnd ? null : range;
+  });
+  return { ...normalized, columnCount: normalized.columnCount - 1, rows, cellStyles, columnWidths, mergedRanges };
 }
 
 export function routeSheetPayload(sheet) {
@@ -311,5 +456,6 @@ export function routeSheetPayload(sheet) {
     cellStyles: normalized.cellStyles,
     columnWidths: normalized.columnWidths,
     rowHeights: normalized.rowHeights,
+    mergedRanges: normalized.mergedRanges,
   };
 }

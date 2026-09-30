@@ -12,13 +12,17 @@ import {
   getRouteCellFill,
   getRouteColumnWidth,
   getRouteRowHeight,
+  getRouteMergeAt,
   insertRouteColumn,
   insertRouteRow,
+  isRouteMergeMaster,
+  mergeRouteSelection,
   routeColumnName,
   routeSelectionToText,
   routeSheetPayload,
   setRouteColumnWidth,
   setRouteRowHeight,
+  unmergeRouteSelection,
   updateRouteCell,
 } from "../src/utils/routeSheet.js";
 import thongTinLienHe from "../src/data/routeSheets/thong-tin-lien-he.js";
@@ -355,4 +359,156 @@ test("Excel Tuyến giữ độ rộng cột và chiều cao hàng tùy chỉnh"
   const sheet = workbook.getWorksheet("EXCEL SIZE");
   assert.equal(sheet.getColumn(2).width, 40);
   assert.equal(sheet.getRow(2).height, 60);
+});
+
+
+test("Admin có thể gộp ngang/dọc/vùng và bỏ gộp", () => {
+  const source = {
+    id: "merge",
+    name: "MERGE",
+    columnCount: 4,
+    rows: [
+      ["TIÊU ĐỀ", "", "", ""],
+      ["", "", "", ""],
+      ["", "", "", ""],
+    ],
+  };
+
+  const horizontal = mergeRouteSelection(source, {
+    anchor: { row: 0, col: 0 },
+    focus: { row: 0, col: 2 },
+  });
+  assert.deepEqual(horizontal.mergedRanges, [{
+    rowStart: 0, rowEnd: 0, colStart: 0, colEnd: 2,
+  }]);
+  const merge = getRouteMergeAt(horizontal, 0, 1);
+  assert.ok(merge);
+  assert.equal(isRouteMergeMaster(merge, 0, 0), true);
+  assert.equal(isRouteMergeMaster(merge, 0, 1), false);
+
+  const vertical = mergeRouteSelection(horizontal, {
+    anchor: { row: 1, col: 3 },
+    focus: { row: 2, col: 3 },
+  });
+  assert.equal(vertical.mergedRanges.length, 2);
+
+  const unmerged = unmergeRouteSelection(vertical, {
+    anchor: { row: 0, col: 1 },
+    focus: { row: 0, col: 1 },
+  });
+  assert.equal(unmerged.mergedRanges.length, 1);
+  assert.equal(getRouteMergeAt(unmerged, 0, 0), null);
+});
+
+test("gộp ô không làm mất dữ liệu của nhiều ô", () => {
+  const source = {
+    id: "merge-safe",
+    name: "MERGE SAFE",
+    columnCount: 2,
+    rows: [["A", "B"]],
+  };
+
+  assert.throws(() => mergeRouteSelection(source, {
+    anchor: { row: 0, col: 0 },
+    focus: { row: 0, col: 1 },
+  }), /nhiều ô chứa dữ liệu/i);
+});
+
+test("nội dung duy nhất được đưa về ô trên-trái khi gộp", () => {
+  const source = {
+    id: "merge-content",
+    name: "MERGE CONTENT",
+    columnCount: 2,
+    rows: [["", "TIÊU ĐỀ"]],
+  };
+
+  const merged = mergeRouteSelection(source, {
+    anchor: { row: 0, col: 0 },
+    focus: { row: 0, col: 1 },
+  });
+  assert.equal(merged.rows[0].cells[0], "TIÊU ĐỀ");
+  assert.equal(merged.rows[0].cells[1], "");
+});
+
+test("vùng gộp dịch/co đúng khi thêm hoặc xóa hàng cột", () => {
+  let sheet = {
+    id: "merge-shift",
+    name: "MERGE SHIFT",
+    columnCount: 4,
+    rows: [
+      ["", "", "", ""],
+      ["TIÊU ĐỀ", "", "", ""],
+      ["", "", "", ""],
+      ["", "", "", ""],
+    ],
+  };
+  sheet = mergeRouteSelection(sheet, {
+    anchor: { row: 1, col: 0 },
+    focus: { row: 2, col: 2 },
+  });
+
+  const rowInsertedBefore = insertRouteRow(sheet, 0);
+  assert.deepEqual(rowInsertedBefore.mergedRanges[0], {
+    rowStart: 2, rowEnd: 3, colStart: 0, colEnd: 2,
+  });
+
+  const rowInsertedInside = insertRouteRow(rowInsertedBefore, 2);
+  assert.deepEqual(rowInsertedInside.mergedRanges[0], {
+    rowStart: 2, rowEnd: 4, colStart: 0, colEnd: 2,
+  });
+
+  const rowDeletedInside = deleteRouteRow(rowInsertedInside, 3);
+  assert.deepEqual(rowDeletedInside.mergedRanges[0], {
+    rowStart: 2, rowEnd: 3, colStart: 0, colEnd: 2,
+  });
+
+  const colInsertedInside = insertRouteColumn(rowDeletedInside, 0);
+  assert.deepEqual(colInsertedInside.mergedRanges[0], {
+    rowStart: 2, rowEnd: 3, colStart: 0, colEnd: 3,
+  });
+
+  const colDeletedInside = deleteRouteColumn(colInsertedInside, 1);
+  assert.deepEqual(colDeletedInside.mergedRanges[0], {
+    rowStart: 2, rowEnd: 3, colStart: 0, colEnd: 2,
+  });
+});
+
+test("payload Firestore lưu vùng gộp", () => {
+  const sheet = mergeRouteSelection({
+    id: "merge-payload",
+    name: "MERGE PAYLOAD",
+    columnCount: 3,
+    rows: [["HEADER", "", ""], ["A", "B", "C"]],
+  }, {
+    anchor: { row: 0, col: 0 },
+    focus: { row: 0, col: 2 },
+  });
+
+  const payload = routeSheetPayload(sheet);
+  assert.deepEqual(payload.mergedRanges, [{
+    rowStart: 0, rowEnd: 0, colStart: 0, colEnd: 2,
+  }]);
+});
+
+test("Excel Tuyến xuất vùng gộp thật", async () => {
+  const merged = mergeRouteSelection({
+    id: "excel-merge",
+    name: "EXCEL MERGE",
+    columnCount: 3,
+    rows: [["TIÊU ĐỀ", "", ""], ["A", "B", "C"]],
+  }, {
+    anchor: { row: 0, col: 0 },
+    focus: { row: 0, col: 2 },
+  });
+
+  const workbook = await buildRouteWorkbook([merged]);
+  const sheet = workbook.getWorksheet("EXCEL MERGE");
+  assert.equal(sheet.getCell("A1").isMerged, true);
+  assert.equal(sheet.getCell("B1").isMerged, true);
+  assert.equal(sheet.getCell("C1").isMerged, true);
+  assert.equal(sheet.getCell("B1").master.address, "A1");
+  assert.equal(sheet.getCell("A1").alignment.horizontal, "center");
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  assert.ok(buffer.byteLength > 1000);
 });

@@ -123,6 +123,22 @@ export async function buildRouteWorkbook(sheets = []) {
       worksheet.getColumn(index + 1).width = Math.max(5.5, Math.min(74, Math.round((widthPx / 7) * 10) / 10));
     });
 
+    normalized.mergedRanges.forEach(range => {
+      worksheet.mergeCells(
+        range.rowStart + 1,
+        range.colStart + 1,
+        range.rowEnd + 1,
+        range.colEnd + 1,
+      );
+      const master = worksheet.getCell(range.rowStart + 1, range.colStart + 1);
+      master.alignment = {
+        ...master.alignment,
+        horizontal: "center",
+        vertical: "middle",
+        wrapText: true,
+      };
+    });
+
     worksheet.views = [{ state: "frozen", ySplit: 1, xSplit: 0 }];
     worksheet.pageSetup.orientation = "landscape";
     worksheet.pageSetup.fitToPage = true;
