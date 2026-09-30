@@ -15,16 +15,45 @@ export function normalizeRouteCell(value) {
   return String(value);
 }
 
+export function normalizeRouteFill(value) {
+  const match = String(value || "").trim().match(/^#?([0-9a-f]{6})$/i);
+  return match ? `#${match[1].toUpperCase()}` : "";
+}
+
+export function routeCellStyleKey(row, col) {
+  return `${Number(row)}:${Number(col)}`;
+}
+
+function parseRouteCellStyleKey(key) {
+  const match = String(key || "").match(/^(\d+):(\d+)$/);
+  return match ? { row: Number(match[1]), col: Number(match[2]) } : null;
+}
+
+function normalizeRouteCellStyles(styles, rowCount, columnCount) {
+  const source = styles && typeof styles === "object" && !Array.isArray(styles) ? styles : {};
+  const output = {};
+  Object.entries(source).forEach(([key, style]) => {
+    const position = parseRouteCellStyleKey(key);
+    const fill = normalizeRouteFill(style?.fill);
+    if (!position || !fill) return;
+    if (position.row < 0 || position.row >= rowCount || position.col < 0 || position.col >= columnCount) return;
+    output[routeCellStyleKey(position.row, position.col)] = { fill };
+  });
+  return output;
+}
+
 export function normalizeRouteSheet(sheet) {
   const columnCount = Math.max(1, Math.min(Number(sheet?.columnCount) || 1, 50));
   const rows = Array.isArray(sheet?.rows) ? sheet.rows : [];
+  const normalizedRows = rows.map(row => {
+    const source = Array.isArray(row) ? row : (Array.isArray(row?.cells) ? row.cells : []);
+    return { cells: Array.from({ length: columnCount }, (_, index) => normalizeRouteCell(source[index])) };
+  });
   return {
     ...sheet,
     columnCount,
-    rows: rows.map(row => {
-      const source = Array.isArray(row) ? row : (Array.isArray(row?.cells) ? row.cells : []);
-      return { cells: Array.from({ length: columnCount }, (_, index) => normalizeRouteCell(source[index])) };
-    }),
+    rows: normalizedRows,
+    cellStyles: normalizeRouteCellStyles(sheet?.cellStyles, normalizedRows.length, columnCount),
   };
 }
 
@@ -45,6 +74,41 @@ export function isRouteCellSelected(selection, row, col) {
     && row <= bounds.rowEnd
     && col >= bounds.colStart
     && col <= bounds.colEnd);
+}
+
+export function getRouteCellFill(sheet, row, col) {
+  return normalizeRouteFill(sheet?.cellStyles?.[routeCellStyleKey(row, col)]?.fill);
+}
+
+export function getReadableTextColor(fill) {
+  const normalized = normalizeRouteFill(fill);
+  if (!normalized) return "";
+  const r = Number.parseInt(normalized.slice(1, 3), 16);
+  const g = Number.parseInt(normalized.slice(3, 5), 16);
+  const b = Number.parseInt(normalized.slice(5, 7), 16);
+  const luminance = (r * 299 + g * 587 + b * 114) / 1000;
+  return luminance >= 150 ? "#0F172A" : "#FFFFFF";
+}
+
+export function applyRouteFillToSelection(sheet, selection, fill) {
+  const normalized = normalizeRouteSheet(sheet);
+  const bounds = routeSelectionBounds(selection);
+  if (!bounds) return normalized;
+
+  const nextFill = normalizeRouteFill(fill);
+  const cellStyles = { ...normalized.cellStyles };
+
+  for (let row = bounds.rowStart; row <= bounds.rowEnd; row += 1) {
+    if (row < 0 || row >= normalized.rows.length) continue;
+    for (let col = bounds.colStart; col <= bounds.colEnd; col += 1) {
+      if (col < 0 || col >= normalized.columnCount) continue;
+      const key = routeCellStyleKey(row, col);
+      if (nextFill) cellStyles[key] = { fill: nextFill };
+      else delete cellStyles[key];
+    }
+  }
+
+  return { ...normalized, cellStyles };
 }
 
 export function routeSelectionToText(sheet, selection) {
@@ -91,12 +155,28 @@ export function updateRouteCell(sheet, rowIndex, colIndex, value) {
   return { ...normalized, rows };
 }
 
+function remapCellStyles(styles, mapper) {
+  const output = {};
+  Object.entries(styles || {}).forEach(([key, style]) => {
+    const position = parseRouteCellStyleKey(key);
+    if (!position) return;
+    const next = mapper(position);
+    if (!next) return;
+    output[routeCellStyleKey(next.row, next.col)] = { ...style };
+  });
+  return output;
+}
+
 export function insertRouteRow(sheet, afterRow = -1) {
   const normalized = normalizeRouteSheet(sheet);
   const rows = normalized.rows.map(row => ({ cells: [...row.cells] }));
   const index = Math.max(0, Math.min(afterRow + 1, rows.length));
   rows.splice(index, 0, { cells: Array(normalized.columnCount).fill("") });
-  return { ...normalized, rows };
+  const cellStyles = remapCellStyles(normalized.cellStyles, position => ({
+    row: position.row >= index ? position.row + 1 : position.row,
+    col: position.col,
+  }));
+  return { ...normalized, rows, cellStyles };
 }
 
 export function deleteRouteRow(sheet, rowIndex) {
@@ -104,7 +184,14 @@ export function deleteRouteRow(sheet, rowIndex) {
   if (rowIndex < 0 || rowIndex >= normalized.rows.length) return normalized;
   const rows = normalized.rows.map(row => ({ cells: [...row.cells] }));
   rows.splice(rowIndex, 1);
-  return { ...normalized, rows };
+  const cellStyles = remapCellStyles(normalized.cellStyles, position => {
+    if (position.row === rowIndex) return null;
+    return {
+      row: position.row > rowIndex ? position.row - 1 : position.row,
+      col: position.col,
+    };
+  });
+  return { ...normalized, rows, cellStyles };
 }
 
 export function insertRouteColumn(sheet, afterCol = -1) {
@@ -116,7 +203,11 @@ export function insertRouteColumn(sheet, afterCol = -1) {
     cells.splice(index, 0, "");
     return { cells };
   });
-  return { ...normalized, columnCount: normalized.columnCount + 1, rows };
+  const cellStyles = remapCellStyles(normalized.cellStyles, position => ({
+    row: position.row,
+    col: position.col >= index ? position.col + 1 : position.col,
+  }));
+  return { ...normalized, columnCount: normalized.columnCount + 1, rows, cellStyles };
 }
 
 export function deleteRouteColumn(sheet, colIndex) {
@@ -128,7 +219,14 @@ export function deleteRouteColumn(sheet, colIndex) {
     cells.splice(colIndex, 1);
     return { cells };
   });
-  return { ...normalized, columnCount: normalized.columnCount - 1, rows };
+  const cellStyles = remapCellStyles(normalized.cellStyles, position => {
+    if (position.col === colIndex) return null;
+    return {
+      row: position.row,
+      col: position.col > colIndex ? position.col - 1 : position.col,
+    };
+  });
+  return { ...normalized, columnCount: normalized.columnCount - 1, rows, cellStyles };
 }
 
 export function routeSheetPayload(sheet) {
@@ -138,5 +236,6 @@ export function routeSheetPayload(sheet) {
     sortOrder: Number(normalized.sortOrder) || 999,
     columnCount: normalized.columnCount,
     rows: normalized.rows.map(row => ({ cells: row.cells.map(normalizeRouteCell) })),
+    cellStyles: normalized.cellStyles,
   };
 }

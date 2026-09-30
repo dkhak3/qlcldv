@@ -1,14 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  applyRouteFillToSelection,
   countRouteSelectionCells,
   deleteRouteColumn,
   deleteRouteRow,
   findRouteMatches,
+  getReadableTextColor,
+  getRouteCellFill,
   insertRouteColumn,
   insertRouteRow,
   routeColumnName,
   routeSelectionToText,
+  routeSheetPayload,
   updateRouteCell,
 } from "../src/utils/routeSheet.js";
 import thongTinLienHe from "../src/data/routeSheets/thong-tin-lien-he.js";
@@ -177,4 +181,93 @@ test("xuất Excel Tuyến giữ đủ sheet, style header và hyperlink", async
 
   const buffer = await workbook.xlsx.writeBuffer();
   assert.ok(buffer.byteLength > 1000);
+});
+
+
+test("Admin có thể tô màu cả vùng và xóa màu", () => {
+  const sheet = {
+    id: "colors",
+    name: "COLORS",
+    columnCount: 3,
+    rows: [["A1", "B1", "C1"], ["A2", "B2", "C2"]],
+  };
+  const selection = {
+    anchor: { row: 0, col: 1 },
+    focus: { row: 1, col: 2 },
+  };
+
+  const colored = applyRouteFillToSelection(sheet, selection, "#fef3c7");
+  assert.equal(getRouteCellFill(colored, 0, 1), "#FEF3C7");
+  assert.equal(getRouteCellFill(colored, 0, 2), "#FEF3C7");
+  assert.equal(getRouteCellFill(colored, 1, 1), "#FEF3C7");
+  assert.equal(getRouteCellFill(colored, 1, 2), "#FEF3C7");
+  assert.equal(getRouteCellFill(colored, 0, 0), "");
+
+  const cleared = applyRouteFillToSelection(colored, selection, "");
+  assert.equal(Object.keys(cleared.cellStyles).length, 0);
+});
+
+test("màu ô dịch theo dữ liệu khi thêm/xóa hàng và cột", () => {
+  const source = applyRouteFillToSelection({
+    id: "shift",
+    name: "SHIFT",
+    columnCount: 3,
+    rows: [["A1", "B1", "C1"], ["A2", "B2", "C2"], ["A3", "B3", "C3"]],
+  }, {
+    anchor: { row: 1, col: 1 },
+    focus: { row: 1, col: 1 },
+  }, "#DBEAFE");
+
+  const withRow = insertRouteRow(source, 0);
+  assert.equal(getRouteCellFill(withRow, 2, 1), "#DBEAFE");
+  assert.equal(getRouteCellFill(withRow, 1, 1), "");
+
+  const withoutRow = deleteRouteRow(withRow, 0);
+  assert.equal(getRouteCellFill(withoutRow, 1, 1), "#DBEAFE");
+
+  const withColumn = insertRouteColumn(withoutRow, 0);
+  assert.equal(getRouteCellFill(withColumn, 1, 2), "#DBEAFE");
+
+  const withoutColumn = deleteRouteColumn(withColumn, 0);
+  assert.equal(getRouteCellFill(withoutColumn, 1, 1), "#DBEAFE");
+});
+
+test("payload Firestore chỉ lưu sparse style của các ô được tô", () => {
+  const sheet = applyRouteFillToSelection({
+    id: "payload",
+    name: "PAYLOAD",
+    columnCount: 2,
+    rows: [["A", "B"], ["C", "D"]],
+  }, {
+    anchor: { row: 1, col: 0 },
+    focus: { row: 1, col: 0 },
+  }, "#FEE2E2");
+
+  const payload = routeSheetPayload(sheet);
+  assert.deepEqual(payload.cellStyles, {
+    "1:0": { fill: "#FEE2E2" },
+  });
+  assert.equal(Object.keys(payload.cellStyles).length, 1);
+});
+
+test("màu chữ tự tương phản theo màu nền", () => {
+  assert.equal(getReadableTextColor("#FEF3C7"), "#0F172A");
+  assert.equal(getReadableTextColor("#0F766E"), "#FFFFFF");
+});
+
+test("Excel Tuyến giữ màu ô tùy chỉnh", async () => {
+  const colored = applyRouteFillToSelection({
+    id: "excel-color",
+    name: "EXCEL COLOR",
+    columnCount: 2,
+    rows: [["STT", "TÊN TUYẾN"], [1, "Tuyến A"]],
+  }, {
+    anchor: { row: 1, col: 1 },
+    focus: { row: 1, col: 1 },
+  }, "#F3E8FF");
+
+  const workbook = await buildRouteWorkbook([colored]);
+  const sheet = workbook.getWorksheet("EXCEL COLOR");
+  assert.equal(sheet.getCell("B2").fill.fgColor.argb, "FFF3E8FF");
+  assert.equal(sheet.getCell("B2").font.color.argb, "FF0F172A");
 });

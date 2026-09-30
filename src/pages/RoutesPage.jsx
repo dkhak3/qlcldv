@@ -8,6 +8,8 @@ import {
   ExternalLink,
   FileSpreadsheet,
   LoaderCircle,
+  Eraser,
+  PaintBucket,
   Pencil,
   Plus,
   Rows3,
@@ -30,13 +32,17 @@ import {
   saveRouteSheet,
 } from "../services/routeSheetService";
 import {
+  applyRouteFillToSelection,
   countRouteSelectionCells,
   deleteRouteColumn,
   deleteRouteRow,
   findRouteMatches,
+  getReadableTextColor,
+  getRouteCellFill,
   insertRouteColumn,
   insertRouteRow,
   isRouteCellSelected,
+  normalizeRouteFill,
   normalizeRouteSheet,
   routeColumnName,
   routeSelectionBounds,
@@ -44,6 +50,17 @@ import {
   updateRouteCell,
 } from "../utils/routeSheet";
 import { routeRowKind, routeSheetColumnMetrics } from "../utils/routeSheetPresentation";
+
+const ROUTE_FILL_COLORS = [
+  { label: "Vàng", value: "#FEF3C7" },
+  { label: "Xanh lá", value: "#DCFCE7" },
+  { label: "Xanh dương", value: "#DBEAFE" },
+  { label: "Cam", value: "#FFEDD5" },
+  { label: "Đỏ", value: "#FEE2E2" },
+  { label: "Tím", value: "#F3E8FF" },
+  { label: "Xám", value: "#E2E8F0" },
+  { label: "Teal", value: "#CCFBF1" },
+];
 
 function isUrl(value) {
   return /^https?:\/\//i.test(String(value || "").trim());
@@ -61,7 +78,10 @@ function selectionHtml(sheet, selection) {
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
-      cells.push(`<td>${value}</td>`);
+      const fill = getRouteCellFill(normalized, row, col);
+      const color = fill ? getReadableTextColor(fill) : "";
+      const style = fill ? ` style="background-color:${fill};color:${color}"` : "";
+      cells.push(`<td${style}>${value}</td>`);
     }
     rows.push(`<tr>${cells.join("")}</tr>`);
   }
@@ -145,6 +165,7 @@ export default function RoutesPage() {
   const [busy, setBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [manageMode, setManageMode] = useState(false);
+  const [customFill, setCustomFill] = useState("#FEF3C7");
   const [selection, setSelection] = useState(null);
   const [dragging, setDragging] = useState(false);
   const [cellDraft, setCellDraft] = useState("");
@@ -289,6 +310,19 @@ export default function RoutesPage() {
     });
   };
 
+  const applySelectionFill = async fill => {
+    if (!activeSheet || !selection) return toast.info("Chọn một hoặc nhiều ô trước khi tô màu");
+    const normalizedFill = normalizeRouteFill(fill);
+    const next = applyRouteFillToSelection(activeSheet, selection, normalizedFill);
+    const bounds = routeSelectionBounds(selection);
+    const actionLabel = normalizedFill ? "Tô màu" : "Xóa màu";
+    await persistSheet(next, `${actionLabel} ${selectedCount} ô · ${activeSheet.name}`, {
+      fill: normalizedFill || null,
+      selection: bounds,
+      cellCount: selectedCount,
+    });
+  };
+
   const mutateStructure = async (type) => {
     if (!activeSheet) return;
     try {
@@ -414,6 +448,32 @@ export default function RoutesPage() {
             <label className="min-w-0"><span className="field-label"><Pencil size={15}/>Ô {selectedCell ? `${routeColumnName(selectedCell.col)}${selectedCell.row + 1}` : "chưa chọn"}</span><textarea className="field-input min-h-16 resize-y py-2 text-sm" disabled={!selectedCell} value={cellDraft} onChange={event => setCellDraft(event.target.value)} placeholder="Chọn một ô trong bảng để sửa"/></label>
             <button type="button" disabled={busy || !selectedCell} className="primary-button !bg-violet-600 !shadow-none hover:!bg-violet-700" onClick={saveCell}>{busy ? <LoaderCircle className="animate-spin" size={17}/> : <Save size={17}/>}Lưu ô</button>
           </div>
+          <div className="mt-3 rounded-xl border border-violet-100 bg-white/70 p-2.5 dark:border-violet-900/50 dark:bg-slate-900/60">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex h-9 items-center gap-2 px-1 text-xs font-bold text-violet-700 dark:text-violet-300"><PaintBucket size={15}/>Màu ô</span>
+              {ROUTE_FILL_COLORS.map(color => <button
+                key={color.value}
+                type="button"
+                title={color.label}
+                disabled={busy || !selection}
+                onClick={() => applySelectionFill(color.value)}
+                className="h-7 w-7 rounded-lg border border-white shadow-sm ring-1 ring-slate-200 transition hover:scale-110 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-900 dark:ring-slate-700"
+                style={{ backgroundColor: color.value }}
+              />)}
+              <span className="mx-0.5 h-7 w-px bg-slate-200 dark:bg-slate-700"/>
+              <input
+                type="color"
+                value={customFill}
+                disabled={busy || !selection}
+                onChange={event => setCustomFill(event.target.value.toUpperCase())}
+                className="h-8 w-10 cursor-pointer rounded-lg border border-slate-200 bg-white p-1 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800"
+                title="Chọn màu tùy chỉnh"
+              />
+              <button type="button" className="secondary-button !h-9 !px-3" disabled={busy || !selection} onClick={() => applySelectionFill(customFill)}><PaintBucket size={15}/>Áp dụng</button>
+              <button type="button" className="secondary-button !h-9 !px-3" disabled={busy || !selection} onClick={() => applySelectionFill("")}><Eraser size={15}/>Xóa màu</button>
+            </div>
+          </div>
+
           <div className="mt-3 flex flex-wrap gap-2">
             <button type="button" className="secondary-button !h-9" disabled={busy} onClick={() => mutateStructure("add-row")}><Rows3 size={15}/>Thêm hàng</button>
             <button type="button" className="secondary-button !h-9" disabled={busy} onClick={() => mutateStructure("add-col")}><Columns3 size={15}/>Thêm cột</button>
@@ -459,6 +519,8 @@ export default function RoutesPage() {
                     const selected = isRouteCellSelected(selection, rowIndex, colIndex);
                     const matched = matchKeys.has(`${rowIndex}:${colIndex}`);
                     const metric = columnMetrics[colIndex] || { widthPx: 120 };
+                    const customCellFill = getRouteCellFill(activeSheet, rowIndex, colIndex);
+                    const customTextColor = customCellFill ? getReadableTextColor(customCellFill) : "";
                     const baseClass = kind === "header"
                       ? "bg-slate-800 font-bold text-white dark:bg-slate-800 dark:text-white"
                       : kind === "section"
@@ -471,12 +533,25 @@ export default function RoutesPage() {
                     return <td
                       id={`route-cell-${rowIndex}-${colIndex}`}
                       key={colIndex}
-                      style={{ width: metric.widthPx, minWidth: metric.widthPx, maxWidth: metric.widthPx }}
+                      style={{
+                        width: metric.widthPx,
+                        minWidth: metric.widthPx,
+                        maxWidth: metric.widthPx,
+                        backgroundColor: customCellFill || undefined,
+                        color: customTextColor || undefined,
+                      }}
                       onPointerDown={event => selectCell(event, rowIndex, colIndex)}
                       onPointerEnter={() => extendSelection(rowIndex, colIndex)}
                       className={`relative select-none whitespace-pre-wrap border-b border-r border-slate-200 align-middle transition dark:border-slate-800 ${blank ? "h-3 px-1 py-0" : "px-2.5 py-2 leading-[1.25rem]"} ${selected ? "!bg-cyan-100 !text-cyan-950 ring-2 ring-inset ring-cyan-500 dark:!bg-cyan-950/80 dark:!text-cyan-50" : matched ? "!bg-amber-100 !text-slate-900 dark:!bg-amber-950/60 dark:!text-white" : baseClass}`}
                     >
-                      {isUrl(value) ? <a href={String(value)} target="_blank" rel="noreferrer" onPointerDown={event => event.stopPropagation()} className={`inline-flex items-center gap-1 break-all font-semibold underline underline-offset-2 ${kind === "header" ? "text-cyan-200 decoration-cyan-300/50" : kind === "section" ? "text-brand-700 decoration-orange-300 dark:text-orange-300" : "text-blue-600 decoration-blue-300 dark:text-blue-300"}`}><span>{String(value)}</span><ExternalLink size={11} className="shrink-0"/></a> : String(value)}
+                      {isUrl(value) ? <a
+                        href={String(value)}
+                        target="_blank"
+                        rel="noreferrer"
+                        onPointerDown={event => event.stopPropagation()}
+                        style={{ color: customTextColor || undefined }}
+                        className={`inline-flex items-center gap-1 break-all font-semibold underline underline-offset-2 ${customCellFill ? "decoration-current" : kind === "header" ? "text-cyan-200 decoration-cyan-300/50" : kind === "section" ? "text-brand-700 decoration-orange-300 dark:text-orange-300" : "text-blue-600 decoration-blue-300 dark:text-blue-300"}`}
+                      ><span>{String(value)}</span><ExternalLink size={11} className="shrink-0"/></a> : String(value)}
                     </td>;
                   })}
                 </tr>;
