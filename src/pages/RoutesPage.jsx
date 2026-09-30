@@ -4,6 +4,7 @@ import {
   ChevronRight,
   ClipboardCopy,
   Columns3,
+  Combine,
   Download,
   ExternalLink,
   FileSpreadsheet,
@@ -14,6 +15,7 @@ import {
   Plus,
   Rows3,
   Save,
+  Scissors,
   Search,
   Settings2,
   Sheet,
@@ -41,11 +43,14 @@ import {
   clearRouteRowHeights,
   getReadableTextColor,
   getRouteCellFill,
+  getRouteMergeAt,
   getRouteColumnWidth,
   getRouteRowHeight,
   insertRouteColumn,
   insertRouteRow,
   isRouteCellSelected,
+  isRouteMergeMaster,
+  mergeRouteSelection,
   normalizeRouteFill,
   normalizeRouteSheet,
   routeColumnName,
@@ -53,6 +58,7 @@ import {
   routeSelectionToText,
   setRouteColumnWidth,
   setRouteRowHeight,
+  unmergeRouteSelection,
   updateRouteCell,
 } from "../utils/routeSheet";
 import { routeRowKind, routeSheetColumnMetrics } from "../utils/routeSheetPresentation";
@@ -84,10 +90,15 @@ function selectionHtml(sheet, selection) {
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
+      const merge = getRouteMergeAt(normalized, row, col);
+      if (merge && !isRouteMergeMaster(merge, row, col)) continue;
       const fill = getRouteCellFill(normalized, row, col);
       const color = fill ? getReadableTextColor(fill) : "";
       const style = fill ? ` style="background-color:${fill};color:${color}"` : "";
-      cells.push(`<td${style}>${value}</td>`);
+      const mergeAttrs = merge
+        ? ` rowspan="${merge.rowEnd - merge.rowStart + 1}" colspan="${merge.colEnd - merge.colStart + 1}"`
+        : "";
+      cells.push(`<td${mergeAttrs}${style}>${value}</td>`);
     }
     rows.push(`<tr>${cells.join("")}</tr>`);
   }
@@ -188,7 +199,7 @@ export default function RoutesPage() {
   const matches = useMemo(() => findRouteMatches(activeSheet, searchQuery), [activeSheet, searchQuery]);
   const matchKeys = useMemo(() => new Set(matches.map(item => `${item.row}:${item.col}`)), [matches]);
   const columnMetrics = useMemo(() => activeSheet ? routeSheetColumnMetrics(activeSheet) : [], [activeSheet]);
-  const selectedCell = selection?.focus || null;
+  const selectedCell = selection?.anchor || null;
   const selectedCount = countRouteSelectionCells(selection);
 
   const loadSheets = useCallback(async () => {
@@ -267,9 +278,16 @@ export default function RoutesPage() {
 
   const selectCell = (event, row, col) => {
     event.preventDefault();
+    const merge = getRouteMergeAt(activeSheet, row, col);
     const point = { row, col };
     if (event.shiftKey && selection?.anchor) {
-      setSelection({ anchor: selection.anchor, focus: point });
+      const focus = merge ? { row: merge.rowEnd, col: merge.colEnd } : point;
+      setSelection({ anchor: selection.anchor, focus });
+    } else if (merge) {
+      setSelection({
+        anchor: { row: merge.rowStart, col: merge.colStart },
+        focus: { row: merge.rowEnd, col: merge.colEnd },
+      });
     } else {
       setSelection({ anchor: point, focus: point });
     }
@@ -278,17 +296,25 @@ export default function RoutesPage() {
 
   const extendSelection = (row, col) => {
     if (!dragging || !selection?.anchor) return;
-    setSelection(current => ({ anchor: current.anchor, focus: { row, col } }));
+    const merge = getRouteMergeAt(activeSheet, row, col);
+    const focus = merge ? { row: merge.rowEnd, col: merge.colEnd } : { row, col };
+    setSelection(current => ({ anchor: current.anchor, focus }));
   };
 
   const goToMatch = delta => {
     if (!matches.length) return;
     const nextIndex = (matchIndex + delta + matches.length) % matches.length;
     const target = matches[nextIndex];
+    const merge = getRouteMergeAt(activeSheet, target.row, target.col);
+    const displayTarget = merge
+      ? { row: merge.rowStart, col: merge.colStart }
+      : target;
     setMatchIndex(nextIndex);
-    setSelection({ anchor: target, focus: target });
+    setSelection(merge
+      ? { anchor: displayTarget, focus: { row: merge.rowEnd, col: merge.colEnd } }
+      : { anchor: target, focus: target });
     requestAnimationFrame(() => {
-      document.getElementById(`route-cell-${target.row}-${target.col}`)?.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+      document.getElementById(`route-cell-${displayTarget.row}-${displayTarget.col}`)?.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
     });
   };
 
@@ -416,6 +442,45 @@ export default function RoutesPage() {
     await persistSheet(next, `Sửa ô ${routeColumnName(selectedCell.col)}${selectedCell.row + 1} · ${activeSheet.name}`, {
       cell: `${routeColumnName(selectedCell.col)}${selectedCell.row + 1}`,
     });
+  };
+
+  const mergeSelection = async () => {
+    if (!activeSheet || !selection) return toast.info("Kéo chọn ít nhất 2 ô cần gộp");
+    try {
+      const next = mergeRouteSelection(activeSheet, selection);
+      const bounds = routeSelectionBounds(selection);
+      const saved = await persistSheet(next, `Gộp ${selectedCount} ô · ${activeSheet.name}`, {
+        selection: bounds,
+        cellCount: selectedCount,
+      });
+      if (saved) {
+        setSelection({
+          anchor: { row: bounds.rowStart, col: bounds.colStart },
+          focus: { row: bounds.rowEnd, col: bounds.colEnd },
+        });
+        toast.success("Đã gộp vùng chọn");
+      }
+    } catch (error) {
+      toast.error(error.message || "Không thể gộp vùng chọn");
+    }
+  };
+
+  const unmergeSelection = async () => {
+    if (!activeSheet || !selection) return toast.info("Chọn ô/vùng đã gộp");
+    const before = activeSheet.mergedRanges?.length || 0;
+    const next = unmergeRouteSelection(activeSheet, selection);
+    const after = next.mergedRanges?.length || 0;
+    if (before === after) return toast.info("Vùng chọn không có ô đã gộp");
+
+    const bounds = routeSelectionBounds(selection);
+    const saved = await persistSheet(next, `Bỏ gộp ô · ${activeSheet.name}`, {
+      selection: bounds,
+      removedMerges: before - after,
+    });
+    if (saved) {
+      setSelection({ anchor: { row: bounds.rowStart, col: bounds.colStart }, focus: { row: bounds.rowStart, col: bounds.colStart } });
+      toast.success("Đã bỏ gộp");
+    }
   };
 
   const applySelectionFill = async fill => {
@@ -583,6 +648,9 @@ export default function RoutesPage() {
           </div>
 
           <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" className="secondary-button !h-9 !border-cyan-200 !text-cyan-700 dark:!border-cyan-900 dark:!text-cyan-300" disabled={busy || selectedCount < 2} onClick={mergeSelection}><Combine size={15}/>Gộp ô</button>
+            <button type="button" className="secondary-button !h-9" disabled={busy || !selection} onClick={unmergeSelection}><Scissors size={15}/>Bỏ gộp</button>
+            <span className="hidden h-9 w-px bg-violet-200 dark:bg-violet-900 sm:block"/>
             <button type="button" className="secondary-button !h-9" disabled={busy} onClick={autoFitColumns}><Columns3 size={15}/>Tự căn cột</button>
             <button type="button" className="secondary-button !h-9" disabled={busy} onClick={autoFitRows}><Rows3 size={15}/>Tự căn hàng</button>
             <span className="hidden h-9 w-px bg-violet-200 dark:bg-violet-900 sm:block"/>
@@ -597,7 +665,7 @@ export default function RoutesPage() {
         </div>}
 
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-slate-400">
-          <span><b className="text-slate-600 dark:text-slate-300">Mẹo:</b> kéo chọn dọc để copy; khi Quản lý dữ liệu, kéo mép tên cột hoặc số hàng để đổi kích thước.</span>
+          <span><b className="text-slate-600 dark:text-slate-300">Mẹo:</b> kéo chọn vùng để gộp/copy; khi Quản lý dữ liệu, kéo mép tên cột hoặc số hàng để đổi kích thước.</span>
           {activeSheet?.source === "excel-seed" && <span className="rounded-full bg-amber-50 px-2.5 py-1 font-bold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">Nguồn Excel</span>}
         </div>
 
@@ -644,11 +712,19 @@ export default function RoutesPage() {
                     />}
                   </th>
                   {Array.from({ length: activeSheet.columnCount }, (_, colIndex) => {
+                    const merge = getRouteMergeAt(activeSheet, rowIndex, colIndex);
+                    if (merge && !isRouteMergeMaster(merge, rowIndex, colIndex)) return null;
                     const value = row.cells[colIndex] ?? "";
                     const selected = isRouteCellSelected(selection, rowIndex, colIndex);
                     const matched = matchKeys.has(`${rowIndex}:${colIndex}`);
                     const metric = columnMetrics[colIndex] || { widthPx: 120 };
-                    const width = getRouteColumnWidth(activeSheet, colIndex, metric.widthPx);
+                    const width = merge
+                      ? Array.from({ length: merge.colEnd - merge.colStart + 1 }, (_, offset) => {
+                          const col = merge.colStart + offset;
+                          const fallback = columnMetrics[col]?.widthPx || 120;
+                          return getRouteColumnWidth(activeSheet, col, fallback);
+                        }).reduce((sum, value) => sum + value, 0)
+                      : getRouteColumnWidth(activeSheet, colIndex, metric.widthPx);
                     const customCellFill = getRouteCellFill(activeSheet, rowIndex, colIndex);
                     const customTextColor = customCellFill ? getReadableTextColor(customCellFill) : "";
                     const baseClass = kind === "header"
@@ -663,6 +739,8 @@ export default function RoutesPage() {
                     return <td
                       id={`route-cell-${rowIndex}-${colIndex}`}
                       key={colIndex}
+                      rowSpan={merge ? merge.rowEnd - merge.rowStart + 1 : undefined}
+                      colSpan={merge ? merge.colEnd - merge.colStart + 1 : undefined}
                       style={{
                         width,
                         minWidth: width,
@@ -672,7 +750,7 @@ export default function RoutesPage() {
                       }}
                       onPointerDown={event => selectCell(event, rowIndex, colIndex)}
                       onPointerEnter={() => extendSelection(rowIndex, colIndex)}
-                      className={`relative select-none whitespace-pre-wrap border-b border-r border-slate-200 align-middle transition dark:border-slate-800 ${blank ? "h-3 px-1 py-0" : "px-2.5 py-2 leading-[1.25rem]"} ${selected ? "!bg-cyan-100 !text-cyan-950 ring-2 ring-inset ring-cyan-500 dark:!bg-cyan-950/80 dark:!text-cyan-50" : matched ? "!bg-amber-100 !text-slate-900 dark:!bg-amber-950/60 dark:!text-white" : baseClass}`}
+                      className={`relative select-none whitespace-pre-wrap border-b border-r border-slate-200 align-middle transition dark:border-slate-800 ${merge ? "text-center font-semibold" : ""} ${blank ? "h-3 px-1 py-0" : "px-2.5 py-2 leading-[1.25rem]"} ${selected ? "!bg-cyan-100 !text-cyan-950 ring-2 ring-inset ring-cyan-500 dark:!bg-cyan-950/80 dark:!text-cyan-50" : matched ? "!bg-amber-100 !text-slate-900 dark:!bg-amber-950/60 dark:!text-white" : baseClass}`}
                     >
                       {isUrl(value) ? <a
                         href={String(value)}
