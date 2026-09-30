@@ -4,6 +4,7 @@ import {
   ChevronRight,
   ClipboardCopy,
   Columns3,
+  Download,
   ExternalLink,
   FileSpreadsheet,
   LoaderCircle,
@@ -20,6 +21,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { useAuth } from "../AuthContext";
+import { exportRouteSheetsToExcel } from "../utils/exportRouteSheets";
 import {
   createRouteSheet,
   deleteRouteSheet,
@@ -40,6 +42,7 @@ import {
   routeSelectionToText,
   updateRouteCell,
 } from "../utils/routeSheet";
+import { routeRowKind, routeSheetColumnMetrics } from "../utils/routeSheetPresentation";
 
 function isUrl(value) {
   return /^https?:\/\//i.test(String(value || "").trim());
@@ -137,6 +140,7 @@ export default function RoutesPage() {
   const [activeId, setActiveId] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [manageMode, setManageMode] = useState(false);
   const [selection, setSelection] = useState(null);
   const [dragging, setDragging] = useState(false);
@@ -152,6 +156,7 @@ export default function RoutesPage() {
   );
   const matches = useMemo(() => findRouteMatches(activeSheet, searchQuery), [activeSheet, searchQuery]);
   const matchKeys = useMemo(() => new Set(matches.map(item => `${item.row}:${item.col}`)), [matches]);
+  const columnMetrics = useMemo(() => activeSheet ? routeSheetColumnMetrics(activeSheet) : [], [activeSheet]);
   const selectedCell = selection?.focus || null;
   const selectedCount = countRouteSelectionCells(selection);
 
@@ -189,6 +194,19 @@ export default function RoutesPage() {
     }
     setCellDraft(String(activeSheet.rows[selectedCell.row]?.cells?.[selectedCell.col] ?? ""));
   }, [activeSheet, selectedCell?.row, selectedCell?.col]);
+
+  const downloadAllSheets = async () => {
+    if (!sheets.length) return toast.info("Chưa có dữ liệu Tuyến để tải");
+    setExporting(true);
+    try {
+      await exportRouteSheetsToExcel(sheets);
+      toast.success(`Đã tải Excel gồm ${sheets.length} sheet`);
+    } catch (error) {
+      toast.error(error.message || "Không thể tạo file Excel");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const copySelection = useCallback(async () => {
     if (!activeSheet || !selection) return toast.info("Chọn một hoặc nhiều ô trước khi copy");
@@ -339,6 +357,7 @@ export default function RoutesPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {canManage && <button type="button" onClick={() => setManageMode(value => !value)} className={manageMode ? "primary-button !bg-violet-600 hover:!bg-violet-700" : "secondary-button"}><Settings2 size={17}/>{manageMode ? "Đang quản lý" : "Quản lý dữ liệu"}</button>}
+            <button type="button" onClick={downloadAllSheets} disabled={exporting || !sheets.length} className="secondary-button"><Download size={17}/>{exporting ? "Đang tạo Excel..." : "Tải Excel"}</button>
             <button type="button" onClick={copySelection} disabled={!selection} className="primary-button !bg-cyan-600 hover:!bg-cyan-700 disabled:opacity-40"><ClipboardCopy size={17}/>Copy vùng chọn {selectedCount ? `(${selectedCount})` : ""}</button>
           </div>
         </div>
@@ -359,6 +378,16 @@ export default function RoutesPage() {
 
         <div className="min-w-0">
           <div className="border-b border-slate-200 p-3 dark:border-slate-800 sm:p-4">
+            {activeSheet && <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-cyan-50 text-cyan-600 dark:bg-cyan-950/50 dark:text-cyan-300"><Sheet size={17}/></span>
+                <div className="min-w-0">
+                  <h2 className="truncate text-sm font-bold text-slate-800 dark:text-white">{activeSheet.name}</h2>
+                  <p className="mt-0.5 text-[11px] text-slate-400">{activeSheet.rows.length} hàng · {activeSheet.columnCount} cột · cột trống được tự thu gọn</p>
+                </div>
+              </div>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.08em] text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">Bảng dữ liệu</span>
+            </div>}
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={17}/>
@@ -394,32 +423,56 @@ export default function RoutesPage() {
             </div>
           </div>
 
-          <div ref={gridRef} className="max-h-[690px] overflow-auto bg-white dark:bg-slate-900">
-            {activeSheet ? <table className="border-separate border-spacing-0 text-xs">
+          <div ref={gridRef} className="max-h-[690px] overflow-auto bg-slate-50/40 dark:bg-slate-950/20">
+            {activeSheet ? <table className="w-max border-separate border-spacing-0 text-xs">
               <thead className="sticky top-0 z-20">
                 <tr>
                   <th className="sticky left-0 z-30 h-9 min-w-12 border-b border-r border-slate-200 bg-slate-100 text-center font-bold text-slate-400 dark:border-slate-700 dark:bg-slate-800">#</th>
-                  {Array.from({ length: activeSheet.columnCount }, (_, col) => <th key={col} className="h-9 min-w-44 border-b border-r border-slate-200 bg-slate-100 px-3 text-center font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">{routeColumnName(col)}</th>)}
+                  {Array.from({ length: activeSheet.columnCount }, (_, col) => {
+                    const metric = columnMetrics[col] || { widthPx: 120 };
+                    return <th key={col} style={{ width: metric.widthPx, minWidth: metric.widthPx, maxWidth: metric.widthPx }} className="h-8 border-b border-r border-slate-200 bg-slate-100 px-2 text-center text-[10px] font-bold text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">{routeColumnName(col)}</th>;
+                  })}
                 </tr>
               </thead>
               <tbody>
-                {activeSheet.rows.map((row, rowIndex) => <tr key={rowIndex}>
-                  <th className="sticky left-0 z-10 h-11 min-w-12 border-b border-r border-slate-200 bg-slate-100 px-2 text-center font-semibold text-slate-400 dark:border-slate-700 dark:bg-slate-800">{rowIndex + 1}</th>
-                  {Array.from({ length: activeSheet.columnCount }, (_, colIndex) => {
-                    const value = row.cells[colIndex] ?? "";
-                    const selected = isRouteCellSelected(selection, rowIndex, colIndex);
-                    const matched = matchKeys.has(`${rowIndex}:${colIndex}`);
-                    return <td
-                      id={`route-cell-${rowIndex}-${colIndex}`}
-                      key={colIndex}
-                      onPointerDown={event => selectCell(event, rowIndex, colIndex)}
-                      onPointerEnter={() => extendSelection(rowIndex, colIndex)}
-                      className={`relative h-11 min-w-44 max-w-80 select-none whitespace-pre-wrap border-b border-r px-3 py-2 align-middle leading-5 transition dark:border-slate-800 ${selected ? "bg-cyan-100 text-cyan-950 ring-1 ring-inset ring-cyan-400 dark:bg-cyan-950/60 dark:text-cyan-100 dark:ring-cyan-600" : matched ? "bg-amber-100/80 text-slate-700 dark:bg-amber-950/40 dark:text-slate-200" : "bg-white text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/70"}`}
-                    >
-                      {isUrl(value) ? <a href={String(value)} target="_blank" rel="noreferrer" onPointerDown={event => event.stopPropagation()} className="inline-flex items-center gap-1 break-all font-semibold text-blue-600 underline decoration-blue-300 underline-offset-2 dark:text-blue-300"><span>{String(value)}</span><ExternalLink size={12} className="shrink-0"/></a> : String(value)}
-                    </td>;
-                  })}
-                </tr>)}
+                {activeSheet.rows.map((row, rowIndex) => {
+                  const kind = routeRowKind(activeSheet, rowIndex);
+                  const rowNumberClass = kind === "section"
+                    ? "bg-teal-700 text-white dark:bg-teal-900"
+                    : kind === "header"
+                      ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300"
+                      : kind === "blank"
+                        ? "bg-slate-50 text-slate-300 dark:bg-slate-900 dark:text-slate-600"
+                        : "bg-slate-100 text-slate-400 dark:bg-slate-800";
+                  return <tr key={rowIndex}>
+                    <th className={`sticky left-0 z-10 h-9 min-w-12 border-b border-r border-slate-200 px-2 text-center text-[10px] font-semibold dark:border-slate-700 ${rowNumberClass}`}>{rowIndex + 1}</th>
+                    {Array.from({ length: activeSheet.columnCount }, (_, colIndex) => {
+                      const value = row.cells[colIndex] ?? "";
+                      const selected = isRouteCellSelected(selection, rowIndex, colIndex);
+                      const matched = matchKeys.has(`${rowIndex}:${colIndex}`);
+                      const metric = columnMetrics[colIndex] || { widthPx: 120 };
+                      const baseClass = kind === "section"
+                        ? "bg-teal-700 font-bold text-white dark:bg-teal-900 dark:text-teal-50"
+                        : kind === "header"
+                          ? "bg-cyan-50 font-bold text-cyan-950 dark:bg-cyan-950/55 dark:text-cyan-100"
+                          : kind === "blank"
+                            ? "bg-slate-50/60 text-slate-300 dark:bg-slate-950/30 dark:text-slate-600"
+                            : rowIndex % 2 === 0
+                              ? "bg-white text-slate-600 dark:bg-slate-900 dark:text-slate-300"
+                              : "bg-slate-50/55 text-slate-600 dark:bg-slate-900/80 dark:text-slate-300";
+                      return <td
+                        id={`route-cell-${rowIndex}-${colIndex}`}
+                        key={colIndex}
+                        style={{ width: metric.widthPx, minWidth: metric.widthPx, maxWidth: metric.widthPx }}
+                        onPointerDown={event => selectCell(event, rowIndex, colIndex)}
+                        onPointerEnter={() => extendSelection(rowIndex, colIndex)}
+                        className={`relative select-none whitespace-pre-wrap border-b border-r px-2.5 py-2 align-middle leading-[1.35rem] transition dark:border-slate-800 ${selected ? "!bg-cyan-100 !text-cyan-950 ring-2 ring-inset ring-cyan-500 dark:!bg-cyan-950/80 dark:!text-cyan-50" : matched ? "!bg-amber-100/90 !text-slate-800 dark:!bg-amber-950/50 dark:!text-slate-100" : baseClass}`}
+                      >
+                        {isUrl(value) ? <a href={String(value)} target="_blank" rel="noreferrer" onPointerDown={event => event.stopPropagation()} className={`inline-flex items-center gap-1 break-all font-semibold underline underline-offset-2 ${kind === "section" ? "text-white decoration-white/60" : "text-blue-600 decoration-blue-300 dark:text-blue-300"}`}><span>{String(value)}</span><ExternalLink size={12} className="shrink-0"/></a> : String(value)}
+                      </td>;
+                    })}
+                  </tr>;
+                })}
               </tbody>
             </table> : <div className="grid min-h-[500px] place-items-center text-sm text-slate-400"><div className="text-center"><FileSpreadsheet className="mx-auto mb-3" size={34}/><p>Chưa có sheet dữ liệu.</p></div></div>}
           </div>
