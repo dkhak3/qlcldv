@@ -94,52 +94,96 @@ function findSheet(workbook, prefix) {
 function findM02Header(sheet) {
   let headerRow = 0;
   sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-    const first = comparable(cellValue(row.getCell(1)));
-    const branch = comparable(cellValue(row.getCell(2)));
-    const vehicle = comparable(cellValue(row.getCell(4)));
-    if (first === "STT" && branch === "CHI NHANH" && vehicle === "SO XE") headerRow = rowNumber;
+    const labels = [];
+    row.eachCell({ includeEmpty: true }, (cell, columnNumber) => {
+      labels[columnNumber] = comparable(cellValue(cell));
+    });
+    const hasLabel = label => labels.some(value => value && value.includes(label));
+    // Không khóa vị trí cột: một số biểu mẫu đặt NGÀY ở cột D, còn biểu mẫu
+    // cũ đặt NGÀY ở cột G. Nhận diện hàng tiêu đề theo tên cột để hỗ trợ cả hai.
+    if (hasLabel("STT") && hasLabel("CHI NHANH") && hasLabel("TUYEN") && hasLabel("SO XE")) {
+      headerRow = rowNumber;
+    }
   });
   return headerRow;
 }
 
-function parseM02(sheet, reportDate = "") {
+function findM02Columns(sheet, headerRow) {
+  const headers = [];
+  sheet.getRow(headerRow).eachCell({ includeEmpty: true }, (cell, columnNumber) => {
+    const label = comparable(cellValue(cell));
+    if (label) headers.push({ column: columnNumber, label });
+  });
+  const columnFor = (aliases, fallback) => {
+    const normalizedAliases = aliases.map(comparable);
+    for (const alias of normalizedAliases) {
+      const exact = headers.find(header => header.label === alias);
+      if (exact) return exact.column;
+    }
+    for (const alias of normalizedAliases) {
+      const partial = headers.find(header => header.label.includes(alias));
+      if (partial) return partial.column;
+    }
+    return fallback;
+  };
+  return {
+    branch: columnFor(["CHI NHÁNH"], 2),
+    route: columnFor(["TUYẾN"], 3),
+    vehicle: columnFor(["SỐ XE", "BIỂN SỐ XE"], 4),
+    departureTime: columnFor(["GIỜ ĐI", "THỜI GIAN ĐI"], 5),
+    arrivalTime: columnFor(["GIỜ VỀ", "THỜI GIAN VỀ"], 6),
+    date: columnFor(["NGÀY"], 7),
+    driver: columnFor(["LÁI XE", "TÊN LÁI XE", "HỌ TÊN LÁI XE", "HỌ VÀ TÊN LÁI XE"], 8),
+    assistant: columnFor(["TIẾP VIÊN", "TÊN TIẾP VIÊN", "HỌ TÊN TIẾP VIÊN"], 9),
+    serviceQuality: columnFor(["CHẤT LƯỢNG DỊCH VỤ"], 10),
+    roadSafety: columnFor(["AN TOÀN GIAO THÔNG"], 11),
+    actualPassengers: columnFor(["SỐ KHÁCH THỰC TẾ"], 12),
+    actualLuggage: columnFor(["HÀNH LÝ THỰC TẾ"], 13),
+    actualFreeTickets: columnFor(["VÉ MIỄN PHÍ THỰC TẾ"], 14),
+    reportedPassengers: columnFor(["SỐ KHÁCH BÁO CÁO"], 15),
+    reportedLuggage: columnFor(["HÀNH LÝ BÁO CÁO"], 16),
+    reportedFreeTickets: columnFor(["VÉ MIỄN PHÍ BÁO CÁO"], 17),
+    note: columnFor(["GHI CHÚ"], 21),
+  };
+}
+
+function parseM02(sheet) {
   const headerRow = findM02Header(sheet);
   if (!headerRow) throw new Error(`Sheet “${sheet.name}” thiếu bảng M02 với các cột STT, CHI NHÁNH, TUYẾN, SỐ XE`);
+  const columns = findM02Columns(sheet, headerRow);
   const rows = [];
   for (let rowNumber = headerRow + 1; rowNumber <= sheet.rowCount; rowNumber += 1) {
     const row = sheet.getRow(rowNumber);
-    const serviceQualityCell = row.getCell(10);
-    const roadSafetyCell = row.getCell(11);
-    const noteCell = row.getCell(21);
-    const branch = cleanText(cellValue(row.getCell(2)));
-    const route = cleanText(cellValue(row.getCell(3)));
-    const vehicle = cleanText(cellValue(row.getCell(4)));
-    // Mỗi file Hậu kiểm là báo cáo của một ngày. Một số file thực tế được
-    // sao chép từ ngày trước nên cột G của M02 vẫn còn ngày cũ. Khi đã xác
-    // định được ngày báo cáo từ tiêu đề M03/tên file, dùng ngày đó cho toàn
-    // bộ dòng thay vì tin vào giá trị cũ trong cột G.
-    const date = reportDate || parseDate(cellValue(row.getCell(7)));
+    const serviceQualityCell = row.getCell(columns.serviceQuality);
+    const roadSafetyCell = row.getCell(columns.roadSafety);
+    const noteCell = row.getCell(columns.note);
+    const branch = cleanText(cellValue(row.getCell(columns.branch)));
+    const route = cleanText(cellValue(row.getCell(columns.route)));
+    const vehicle = cleanText(cellValue(row.getCell(columns.vehicle)));
+    // NGÀY của báo cáo chi tiết phải lấy từ chính ô NGÀY của từng dòng M02.
+    // Không thay bằng ngày trong tiêu đề M03 hoặc tên file, vì các ngày có thể khác nhau.
+    const date = parseDate(cellValue(row.getCell(columns.date)));
     if (!branch || !route || !vehicle) continue;
     rows.push({
       sourceRow: rowNumber,
       branch,
       route,
       vehicle,
-      departureTime: parseTime(cellValue(row.getCell(5))),
-      arrivalTime: parseTime(cellValue(row.getCell(6))),
+      departureTime: parseTime(cellValue(row.getCell(columns.departureTime))),
+      arrivalTime: parseTime(cellValue(row.getCell(columns.arrivalTime))),
       date,
-      driver: cleanText(cellValue(row.getCell(8))),
-      assistant: cleanText(cellValue(row.getCell(9))),
+      driver: cleanText(cellValue(row.getCell(columns.driver))),
+      assistant: cleanText(cellValue(row.getCell(columns.assistant))),
       serviceQuality: cleanText(cellValue(serviceQualityCell)),
       serviceQualityRuns: styledTextRuns(serviceQualityCell),
       roadSafety: cleanText(cellValue(roadSafetyCell)),
       roadSafetyRuns: styledTextRuns(roadSafetyCell),
-      actualPassengers: cellValue(row.getCell(12)) ?? "",
-      actualLuggage: cellValue(row.getCell(13)) ?? "",
-      actualFreeTickets: cellValue(row.getCell(14)) ?? "",
-      reportedPassengers: cellValue(row.getCell(15)) ?? "",
-      reportedLuggage: cellValue(row.getCell(16)) ?? "",
-      reportedFreeTickets: cellValue(row.getCell(17)) ?? "",
+      actualPassengers: cellValue(row.getCell(columns.actualPassengers)) ?? "",
+      actualLuggage: cellValue(row.getCell(columns.actualLuggage)) ?? "",
+      actualFreeTickets: cellValue(row.getCell(columns.actualFreeTickets)) ?? "",
+      reportedPassengers: cellValue(row.getCell(columns.reportedPassengers)) ?? "",
+      reportedLuggage: cellValue(row.getCell(columns.reportedLuggage)) ?? "",
+      reportedFreeTickets: cellValue(row.getCell(columns.reportedFreeTickets)) ?? "",
       note: preserveText(cellValue(noteCell)),
       noteRuns: styledTextRuns(noteCell),
     });
@@ -246,14 +290,13 @@ async function parseWorkbook(file) {
   const m02 = findSheet(workbook, "M02");
   const m03 = findSheet(workbook, "M03");
   if (!m02 || !m03) throw new Error(`${file.name}: phải có đủ hai sheet M02 và M03`);
-  // Ưu tiên ngày ghi trên tiêu đề M03 vì đây là ngày của báo cáo ngày.
-  // Nếu tiêu đề không có ngày mới dùng ngày trong tên file, rồi mới đến
-  // phần đầu của M02. Không dùng cột ngày của các dòng M02 làm ngày chung
-  // vì các file sao chép mẫu có thể chưa cập nhật cột này.
+  // Ngày chung chỉ dùng làm ngày dự phòng cho các dòng vi phạm M03:
+  // ưu tiên tiêu đề M03, sau đó tên file, rồi mới quét phần đầu của M02.
+  // Các dòng chi tiết M02 luôn lấy NGÀY trực tiếp từ cột tương ứng của từng dòng.
   const reportDate = findDateInTopRows(m03)
     || parseDate(file.name)
     || findDateInTopRows(m02);
-  const detailRows = parseM02(m02, reportDate);
+  const detailRows = parseM02(m02);
   const violations = parseM03(m03, reportDate);
   return {
     fileName: file.name,
@@ -334,4 +377,4 @@ export async function fingerprintHauKiemFile(file) {
   return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export const __test__ = { parseDate, parseTime, contentSimilarity, isViolationMatch, buildSummary };
+export const __test__ = { parseDate, parseTime, contentSimilarity, isViolationMatch, buildSummary, findM02Header, findM02Columns, parseM02 };
