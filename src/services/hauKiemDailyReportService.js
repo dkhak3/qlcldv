@@ -1,41 +1,32 @@
 import {
-  deleteDoc,
+  Bytes,
   doc,
   getDoc,
   onSnapshot,
   serverTimestamp,
-  setDoc,
   updateDoc,
+  writeBatch,
 } from "firebase/firestore";
-import {
-  deleteObject,
-  getBytes,
-  ref,
-  uploadBytes,
-} from "firebase/storage";
 import { saveAs } from "file-saver";
-import { firebaseAuth, firebaseStorage, firestore } from "../lib/firebaseClient";
+import { firebaseAuth, firestore } from "../lib/firebaseClient";
 import {
   MAX_HAUKIEM_DAILY_REPORT_BYTES,
-  sanitizeHauKiemDailyReportFileName,
   validateHauKiemDailyReportFile,
 } from "../utils/hauKiemDailyReport";
 import { writeAuditLog } from "./auditLogService";
 
 const COLLECTION = "haukiem_daily_reports";
 const DOCUMENT_ID = "current";
-const STORAGE_DIRECTORY = "reports/haukiem-daily-report";
+const FILE_DOCUMENT_ID = "current_file";
 
 function getDocumentRef() {
   if (!firestore) throw new Error("Firestore chưa được cấu hình");
   return doc(firestore, COLLECTION, DOCUMENT_ID);
 }
 
-function getStorageInstance() {
-  if (!firebaseStorage) {
-    throw new Error("Firebase Storage chưa được cấu hình. Hãy kiểm tra VITE_FIREBASE_STORAGE_BUCKET và bật Cloud Storage trong Firebase Console.");
-  }
-  return firebaseStorage;
+function getFileDocumentRef() {
+  if (!firestore) throw new Error("Firestore chưa được cấu hình");
+  return doc(firestore, COLLECTION, FILE_DOCUMENT_ID);
 }
 
 export function subscribeHauKiemDailyReport(onChange, onError) {
@@ -43,59 +34,70 @@ export function subscribeHauKiemDailyReport(onChange, onError) {
     onError?.(new Error("Firestore chưa được cấu hình"));
     return () => {};
   }
+
   return onSnapshot(
     getDocumentRef(),
-    snapshot => onChange(snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null),
+    snapshot => {
+      const report = snapshot.exists() ? snapshot.data() : null;
+      onChange?.(report?.storageType === "firestore" ? { id: snapshot.id, ...report } : null);
+    },
     error => onError?.(error),
   );
 }
 
 export async function uploadHauKiemDailyReport(file, profile) {
-  const storage = getStorageInstance();
   const inspected = validateHauKiemDailyReportFile(file);
   const reportRef = getDocumentRef();
+  const fileRef = getFileDocumentRef();
   const previousSnapshot = await getDoc(reportRef);
   const previous = previousSnapshot.exists() ? previousSnapshot.data() : null;
-  const randomId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  const storagePath = `${STORAGE_DIRECTORY}/${Date.now()}-${randomId}-${sanitizeHauKiemDailyReportFileName(file.name)}`;
-  const objectRef = ref(storage, storagePath);
+  const fileBytes = new Uint8Array(await file.arrayBuffer());
 
-  await uploadBytes(objectRef, file, {
+  if (fileBytes.byteLength !== inspected.size) {
+    throw new Error("Không thể đọc đầy đủ dữ liệu của file đã chọn");
+  }
+  if (fileBytes.byteLength > MAX_HAUKIEM_DAILY_REPORT_BYTES) {
+    throw new Error("Dung lượng file tối đa là 500 KB");
+  }
+
+  const fileData = Bytes.fromUint8Array(fileBytes);
+  const updatedBy = profile?.id || firebaseAuth?.currentUser?.uid || "";
+  const updatedByName = profile?.fullName || profile?.username || "";
+  const batch = writeBatch(firestore);
+
+  batch.set(fileRef, {
+    fileData,
+    originalName: inspected.originalName,
     contentType: inspected.contentType,
-    customMetadata: { originalName: inspected.originalName },
+    size: fileBytes.byteLength,
+    updatedAt: serverTimestamp(),
   });
 
-  try {
-    await setDoc(reportRef, {
-      originalName: inspected.originalName,
-      storagePath,
-      contentType: inspected.contentType,
-      size: inspected.size,
-      isVisible: previous ? previous.isVisible !== false : true,
-      updatedAt: serverTimestamp(),
-      updatedBy: profile?.id || firebaseAuth?.currentUser?.uid || "",
-      updatedByName: profile?.fullName || profile?.username || "",
-      createdAt: previous?.createdAt || serverTimestamp(),
-    });
-  } catch (error) {
-    await deleteObject(objectRef).catch(() => {});
-    throw error;
-  }
+  batch.set(reportRef, {
+    storageType: "firestore",
+    originalName: inspected.originalName,
+    contentType: inspected.contentType,
+    size: fileBytes.byteLength,
+    isVisible: previous?.storageType === "firestore" ? previous.isVisible !== false : true,
+    updatedAt: serverTimestamp(),
+    updatedBy,
+    updatedByName,
+    createdAt: previous?.storageType === "firestore" && previous.createdAt
+      ? previous.createdAt
+      : serverTimestamp(),
+  });
 
-  if (previous?.storagePath && previous.storagePath !== storagePath) {
-    await deleteObject(ref(storage, previous.storagePath)).catch(error => {
-      console.warn("Không thể dọn file Báo cáo ngày cũ trên Firebase Storage:", error);
-    });
-  }
+  await batch.commit();
 
   void writeAuditLog({
     action: "upload",
     entityType: "haukiem_daily_report",
     entityId: DOCUMENT_ID,
     label: "File Báo cáo ngày",
-    details: { file: inspected.originalName, size: inspected.size },
+    details: { file: inspected.originalName, size: fileBytes.byteLength },
   });
-  return { originalName: inspected.originalName, size: inspected.size };
+
+  return { originalName: inspected.originalName, size: fileBytes.byteLength };
 }
 
 export async function setHauKiemDailyReportVisibility(isVisible, profile) {
@@ -105,6 +107,7 @@ export async function setHauKiemDailyReportVisibility(isVisible, profile) {
     updatedBy: profile?.id || firebaseAuth?.currentUser?.uid || "",
     updatedByName: profile?.fullName || profile?.username || "",
   });
+
   void writeAuditLog({
     action: "visibility",
     entityType: "haukiem_daily_report",
@@ -115,20 +118,18 @@ export async function setHauKiemDailyReportVisibility(isVisible, profile) {
 }
 
 export async function deleteHauKiemDailyReport() {
-  const storage = getStorageInstance();
   const reportRef = getDocumentRef();
+  const fileRef = getFileDocumentRef();
   const snapshot = await getDoc(reportRef);
-  if (!snapshot.exists()) return;
-  const report = snapshot.data();
+  const report = snapshot.exists() ? snapshot.data() : null;
+  const batch = writeBatch(firestore);
 
-  if (report.storagePath) {
-    try {
-      await deleteObject(ref(storage, report.storagePath));
-    } catch (error) {
-      if (error.code !== "storage/object-not-found") throw error;
-    }
-  }
-  await deleteDoc(reportRef);
+  batch.delete(reportRef);
+  batch.delete(fileRef);
+  await batch.commit();
+
+  if (!report) return;
+
   void writeAuditLog({
     action: "delete",
     entityType: "haukiem_daily_report",
@@ -139,9 +140,28 @@ export async function deleteHauKiemDailyReport() {
 }
 
 export async function downloadHauKiemDailyReport(report) {
-  const storage = getStorageInstance();
-  if (!report?.storagePath) throw new Error("Không tìm thấy file Báo cáo ngày");
-  const bytes = await getBytes(ref(storage, report.storagePath), MAX_HAUKIEM_DAILY_REPORT_BYTES);
+  if (report?.storageType !== "firestore") {
+    throw new Error("Không tìm thấy nội dung File Báo cáo ngày trong Firestore");
+  }
+  if (report.isVisible === false) {
+    throw new Error("File Báo cáo ngày hiện đang được ẩn");
+  }
+
+  const snapshot = await getDoc(getFileDocumentRef());
+  if (!snapshot.exists()) {
+    throw new Error("Không tìm thấy nội dung File Báo cáo ngày trong Firestore");
+  }
+
+  const fileData = snapshot.data()?.fileData;
+  if (!fileData || typeof fileData.toUint8Array !== "function") {
+    throw new Error("Dữ liệu File Báo cáo ngày không hợp lệ");
+  }
+
+  const bytes = fileData.toUint8Array();
+  if (bytes.byteLength > MAX_HAUKIEM_DAILY_REPORT_BYTES) {
+    throw new Error("Dung lượng file vượt quá giới hạn 500 KB");
+  }
+
   const blob = new Blob([bytes], { type: report.contentType || "application/octet-stream" });
   saveAs(blob, report.originalName || "Bao-cao-ngay");
 }
