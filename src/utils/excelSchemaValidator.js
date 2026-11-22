@@ -33,6 +33,13 @@ export function evaluateSheetNames(sheetNames, schema) {
     if (found) matched.push({ definition, sheetName: found });
     else missing.push(`${definition.prefix}*`);
   });
+  // Optional sheet definitions are validated when present, but never cause a missing-sheet error.
+  // Keep legacy string entries (for GPS) informational only, matching the previous behavior.
+  (schema.optionalSheets || []).forEach(definition => {
+    if (typeof definition === "string") return;
+    const found = sheetNames.find(name => matchSheetName(name, definition));
+    if (found) matched.push({ definition, sheetName: found });
+  });
   if (schema.dynamicSheetPattern) {
     const found = sheetNames.filter(name => schema.dynamicSheetPattern.test(String(name).trim()));
     if (!found.length) missing.push("sheet tháng MM.YYYY");
