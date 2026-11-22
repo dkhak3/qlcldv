@@ -38,6 +38,31 @@ function moveMerge(range, insertions) {
   return `${match[1]}${start}:${match[3]}${end}`;
 }
 
+function normalizeCameraTemplateSections(sheet) {
+  // Hỗ trợ cả mẫu cũ (còn mục BA 35 tuyến, SOJI mục 3, TONGDA mục 4)
+  // lẫn mẫu mới đã được rút gọn còn ba mục.
+  try {
+    const oldBa35 = findSection(sheet, "2. BINH ANH 35 TUYEN");
+    for (let row = oldBa35.headerRow; row <= oldBa35.totalRow; row += 1) {
+      sheet.getRow(row).hidden = true;
+    }
+  } catch {
+    // Mẫu mới không còn mục BA 35 tuyến.
+  }
+
+  const renameSection = (oldTitle, newTitle) => {
+    for (let row = 1; row <= sheet.rowCount; row += 1) {
+      if (normalizeText(sheet.getCell(row, 1).value) === oldTitle) {
+        sheet.getCell(row, 1).value = newTitle;
+        return;
+      }
+    }
+  };
+
+  renameSection("3. SOJI", "2. SOJI");
+  renameSection("4. TONGDA", "3. TONGDA");
+}
+
 export function prepareDynamicRows(sheet, results) {
   const originalMerges = [...sheet.model.merges];
   originalMerges.forEach(range => sheet.unMergeCells(range));
@@ -59,6 +84,7 @@ export async function buildCameraReportWorkbook(templateBuffer, { results, start
   await workbook.xlsx.load(templateBuffer);
   const sheet = workbook.getWorksheet("BCTH P.QLCL");
   if (!sheet) throw new Error("Không tìm thấy sheet BCTH P.QLCL trong file mẫu mới");
+  normalizeCameraTemplateSections(sheet);
   prepareDynamicRows(sheet, results);
   applyStandardReportHeader(sheet, startDate, endDate);
   sheet.getCell("A4").value = `Họ & Tên: ${employees.trim()}`;
