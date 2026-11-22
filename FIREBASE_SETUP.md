@@ -43,10 +43,10 @@ Không chọn Test mode và không dùng rule `allow read, write: if true`.
 ### File Báo cáo ngày Hậu kiểm
 
 1. File được lưu trực tiếp trong Cloud Firestore, không sử dụng Firebase Storage.
-2. Metadata được lưu tại collection \`haukiem_daily_reports\`, document \`current\`; nội dung nhị phân được lưu riêng tại document \`current_file\` bằng kiểu dữ liệu Bytes.
+2. Metadata được lưu tại collection `haukiem_daily_reports`, document `current`; nội dung nhị phân được lưu riêng tại document `current_file` bằng kiểu dữ liệu Bytes.
 3. Chỉ SuperAdmin được tải lên, thay thế, ẩn/hiện hoặc xóa file. Người dùng đã đăng nhập chỉ đọc được nội dung file khi tài liệu đang hiển thị.
 4. Hỗ trợ Excel, PDF và Word; dung lượng tối đa 500 KB mỗi file. Việc lưu metadata và nội dung được thực hiện trong cùng một batch để tránh lưu lệch dữ liệu.
-5. Trong **Firestore Database > Indexes > Single field**, tạo field exemption cho collection group \`haukiem_daily_reports\`, field path \`fileData\`; tắt các chỉ mục đơn cho trường này vì ứng dụng không truy vấn theo nội dung file.
+5. Trong **Firestore Database > Indexes > Single field**, tạo field exemption cho collection group `haukiem_daily_reports`, field path `fileData`; tắt các chỉ mục đơn cho trường này vì ứng dụng không truy vấn theo nội dung file.
 
 Không cần mở **Build > Storage**, không cần cấu hình bucket và không cần deploy Storage Rules cho chức năng này.
 
@@ -78,7 +78,7 @@ Không thêm tiền tố `VITE_` cho ba khóa máy chủ này. Mọi biến bắ
 
 ### Chạy giao diện trên máy
 
-Sao chép `.env.example` thành `.env.local`, chỉ cần điền sáu biến Firebase Web:
+Sao chép `.env.example` thành `.env.local`, chỉ cần điền năm biến Firebase Web:
 
 ```env
 VITE_FIREBASE_API_KEY=...
