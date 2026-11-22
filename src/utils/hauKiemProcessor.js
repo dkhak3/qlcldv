@@ -80,7 +80,7 @@ function parseDate(value) {
 function parseTime(value) {
   if (typeof value === "number" && Number.isFinite(value)) return value >= 1 ? value % 1 : value;
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return (value.getHours() * 3600 + value.getMinutes() * 60 + value.getSeconds()) / 86400;
+    return (value.getUTCHours() * 3600 + value.getUTCMinutes() * 60 + value.getUTCSeconds()) / 86400;
   }
   const match = cleanText(value).match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
   return match ? (Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3] || 0)) / 86400 : cleanText(value);
