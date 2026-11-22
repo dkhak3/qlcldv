@@ -1,10 +1,15 @@
 export const REPORT_FILE_SCHEMAS = {
   cameraMain: {
     label: "Camera chính",
-    sheets: [
+    // Các sheet BÌNH ANH là tùy chọn: chỉ xử lý sheet đang có trong file.
+    optionalSheets: [
       { name: "SỔ THEO DÕI BA", aliases: ["SO THEO DOI BA"], headers: ["SỐ XE", "CHI NHÁNH", "TÌNH TRẠNG"] },
-      { name: "SỔ THEO DÕI 16 TUYẾN", aliases: ["SỔ THEO DÕI 16 TUYẾN HCM"], headers: ["SỐ XE", "CHI NHÁNH", "TÌNH TRẠNG"] },
       { name: "SỔ THEO DÕI 35 TUYẾN", headers: ["SỐ XE", "CHI NHÁNH", "TÌNH TRẠNG"] },
+      { name: "SỔ THEO DÕI 16 TUYẾN", aliases: ["SỔ THEO DÕI 16 TUYẾN HCM"], headers: ["SỐ XE", "CHI NHÁNH", "TÌNH TRẠNG"] },
+      { name: "SỔ THEO DÕI VỆ SINH CAMERA BA", headers: ["SỐ XE", "CHI NHÁNH", "TÌNH TRẠNG"] },
+    ],
+    // SOJI vẫn là sheet bắt buộc như logic hiện tại.
+    sheets: [
       { name: "SỔ THEO DÕI SOJI", headers: ["SỐ XE", "CHI NHÁNH", "TÌNH TRẠNG"] },
     ],
   },
