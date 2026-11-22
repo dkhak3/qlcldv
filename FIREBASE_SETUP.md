@@ -3,12 +3,13 @@
 Kiến trúc này không cần chạy database trên máy cá nhân:
 
 - Firebase Authentication: đăng nhập bằng tên tài khoản.
-- Cloud Firestore: lưu hồ sơ User, Blog, chuyên mục, cấu hình Box, Donate, trang/slug và các báo cáo đã lưu.
+- Cloud Firestore: lưu hồ sơ User, Blog, chuyên mục, cấu hình Box, Donate, trang/slug, metadata và các báo cáo đã lưu.
+- Cloud Storage for Firebase: lưu file đính kèm và File Báo cáo ngày của Hậu kiểm.
 - ImgBB: lưu ảnh bìa Blog.
 - Google Drive: lưu video Blog và video hướng dẫn.
 - Vercel Functions: giữ khóa quản trị Firebase và xử lý tạo User/đổi mật khẩu an toàn.
 
-> Có thể bắt đầu bằng các gói miễn phí. Không bật Firebase Blaze nếu bạn muốn bảo đảm không phát sinh hóa đơn. Hệ thống sẽ dừng khi vượt hạn mức miễn phí thay vì tự thu tiền.
+> Authentication và Firestore có thể sử dụng hạn mức miễn phí theo gói Spark. Riêng Cloud Storage for Firebase (được dùng để lưu File Báo cáo ngày Hậu kiểm) yêu cầu gói Blaze kể từ 03/02/2026 và tính phí theo mức sử dụng. Không nâng cấp nếu bạn chưa chấp nhận việc liên kết tài khoản thanh toán; khi chưa bật Storage, chức năng tải file chưa thể hoạt động.
 
 ## 1. Tạo Firebase project
 
@@ -39,6 +40,15 @@ Kiến trúc này không cần chạy database trên máy cá nhân:
 5. Sao chép toàn bộ nội dung file `firestore.rules` của project, dán vào và nhấn **Publish**.
 
 Không chọn Test mode và không dùng rule `allow read, write: if true`.
+
+### Firebase Storage (File Báo cáo ngày Hậu kiểm)
+
+1. Vào **Build > Storage** trong Firebase Console và tạo/mở bucket.
+2. Kiểm tra bucket name trùng với biến `VITE_FIREBASE_STORAGE_BUCKET` trong `.env.local` và Vercel.
+3. File Báo cáo ngày được lưu trong thư mục `reports/haukiem-daily-report`. Firestore chỉ lưu tên file, dung lượng, trạng thái hiển thị và đường dẫn Storage.
+4. Rules nằm trong `storage.rules`; SuperAdmin mới được tải lên, thay thế hoặc xóa file. Người dùng đã đăng nhập được tải file khi mục đang được phát hành.
+
+**Lưu ý thanh toán quan trọng:** theo chính sách Firebase hiện hành, Cloud Storage for Firebase yêu cầu dự án dùng gói Blaze (trả theo mức sử dụng) kể từ ngày 03/02/2026. Vẫn có hạn mức miễn phí, nhưng không có nghĩa là mọi khu vực đều miễn phí; bậc Always Free của Google Cloud Storage chỉ áp dụng cho một số khu vực tại Hoa Kỳ. Hãy kiểm tra khu vực bucket, liên kết thanh toán và thiết lập cảnh báo ngân sách trước khi bật Storage. Không cần thay đổi gói nếu bạn chưa đồng ý với điều kiện thanh toán.
 
 ## 3. Tạo khóa máy chủ Firebase
 
@@ -154,11 +164,11 @@ Admin có thể quản lý Blog, chuyên mục, Box và User; Admin không nhìn
 9. Xử lý thử một báo cáo, nhấn **Lưu báo cáo**, xác nhận và mở **Báo cáo đã lưu** trong menu tài khoản.
 10. Vào **Quản lý Donate** để thêm tài khoản ngân hàng; vào **Quản lý trang & slug** để thử đổi đường dẫn.
 
-> Mỗi khi project được cập nhật file `firestore.rules`, bạn cần mở **Firestore Database > Rules**, dán lại toàn bộ file và nhấn **Publish**. Nếu chưa Publish, ứng dụng sẽ báo `Missing or insufficient permissions` cho các chức năng mới.
+> Mỗi khi project được cập nhật file `firestore.rules` hoặc `storage.rules`, hãy chạy `npx firebase-tools deploy --only firestore:rules,storage --project qlcldv-6cae7` (hoặc Publish đúng bộ Rules trong Firebase Console). Nếu chưa deploy Rules, ứng dụng có thể báo `Missing or insufficient permissions` hoặc `storage/unauthorized`.
 
 ## 9. Lưu ý về chi phí
 
-- Firebase Spark là gói không cần phương thức thanh toán và có hạn mức miễn phí.
+- Firebase Authentication và Firestore có hạn mức miễn phí theo gói Spark; Cloud Storage for Firebase hiện yêu cầu gói Blaze. Blaze là trả theo mức sử dụng, vì vậy cần theo dõi Usage và thiết lập cảnh báo ngân sách.
 - ImgBB và Google Drive phụ thuộc hạn mức tài khoản miễn phí tương ứng.
 - Vercel Hobby có hạn mức miễn phí; nếu vượt hạn mức, chức năng có thể tạm dừng.
 - Không cam kết mọi dịch vụ bên thứ ba sẽ giữ chính sách miễn phí vĩnh viễn. Hãy kiểm tra trang Usage định kỳ và không nâng cấp lên gói trả phí nếu chưa được phép.
