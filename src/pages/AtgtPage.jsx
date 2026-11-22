@@ -7,6 +7,7 @@ import SaveReportButton from "../components/SaveReportButton";
 import ExcelSchemaStatus from "../components/ExcelSchemaStatus";
 import ReportWorkflowStatus from "../components/ReportWorkflowStatus";
 import { exportAtgtReport } from "../utils/exportAtgtReport";
+import AtgtDailyReportSection from "../components/AtgtDailyReportSection";
 import { fingerprintAtgtFile, processAtgtFiles } from "../utils/atgtProcessor";
 
 const EMPTY_RESULTS = { summary: [], detailRows: [], reportDetailRows: [], violations: [], fileSummaries: [], unmatchedCount: 0, ignoredOtherCount: 0 };
@@ -124,6 +125,7 @@ export default function AtgtPage() {
   const saveForm = { startDate, endDate, employees, results };
   return <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
     <div className="mx-auto mb-10 max-w-3xl text-center"><span className="inline-flex rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-bold tracking-[.16em] text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">BÁO CÁO TUẦN</span><h1 className="mt-4 text-3xl font-bold tracking-tight text-ink dark:text-white sm:text-4xl">Tổng hợp báo cáo ATGT</h1><p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400 sm:text-base">Gộp từ 1 đến 7 file giám sát ATGT hằng ngày, đối chiếu M02/M03 và xuất báo cáo tuần theo mẫu CITYBUS.</p></div>
+    <div className="mb-7"><AtgtDailyReportSection /></div>
     <div className="grid items-start gap-6 lg:grid-cols-[.8fr_1.2fr]">
       <ManagedGuideVideo reportKey="atgt" description="Cách chuẩn bị file và xuất báo cáo ATGT"/>
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card dark:border-slate-800 dark:bg-slate-900 sm:p-6">
