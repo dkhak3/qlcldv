@@ -8,9 +8,8 @@ const { saveAs } = FileSaver;
 
 const SECTION_TITLES = {
   BA: "1. BINH ANH",
-  BA35: "2. BINH ANH 35 TUYEN",
-  SOJI: "3. SOJI",
-  TONGDA: "4. TONGDA",
+  SOJI: "2. SOJI",
+  TONGDA: "3. TONGDA",
 };
 
 export function findSection(sheet, title) {
