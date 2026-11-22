@@ -226,6 +226,7 @@ async function processGroups(workbook, groups, startDate, endDate, fileLabel) {
 
     const records = [];
     const datesSeen = new Set();
+    const sheetDetails = [];
     for (const sheetName of availableSheets) {
       const parsed = readSheet(findWorksheet(workbook, sheetName), startDate, endDate);
       if (!parsed.hasDateHeader || !parsed.hasColumnHeader) {
@@ -233,8 +234,27 @@ async function processGroups(workbook, groups, startDate, endDate, fileLabel) {
       }
       parsed.records.forEach(record => records.push(record));
       parsed.datesSeen.forEach(date => datesSeen.add(date));
+
+      const sheetStates = resolveVehicleStates(parsed.records, endDate, parsed.datesSeen.has(endDate));
+      const vehicles = { fixed: [], unfixed: [], checked: [] };
+      sheetStates.forEach((current, plate) => {
+        if (vehicles[current.state]) vehicles[current.state].push(plate);
+      });
+      Object.values(vehicles).forEach(list => list.sort((a, b) => a.localeCompare(b, "vi", { numeric: true })));
+      sheetDetails.push({
+        sheetName,
+        total: vehicles.fixed.length + vehicles.unfixed.length + vehicles.checked.length,
+        fixed: vehicles.fixed.length,
+        unfixed: vehicles.unfixed.length,
+        checked: vehicles.checked.length,
+        vehicles,
+      });
     }
-    results.push({ ...group, rows: summarize(records, endDate, datesSeen.has(endDate)) });
+    results.push({
+      ...group,
+      rows: summarize(records, endDate, datesSeen.has(endDate)),
+      sheetDetails,
+    });
   }
   return results;
 }
