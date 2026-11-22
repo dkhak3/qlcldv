@@ -1,12 +1,21 @@
 import ExcelJS from "exceljs";
 
 const MAIN_GROUPS = [
-  { key: "BA", title: "1. BÌNH ANH", sheets: ["SỔ THEO DÕI BA", "SỔ THEO DÕI 16 TUYẾN"] },
-  { key: "BA35", title: "2. BÌNH ANH 35 TUYẾN", sheets: ["SỔ THEO DÕI 35 TUYẾN"] },
-  { key: "SOJI", title: "3. SOJI", sheets: ["SỔ THEO DÕI SOJI"] },
+  {
+    key: "BA",
+    title: "1. BÌNH ANH",
+    sheets: [
+      "SỔ THEO DÕI BA",
+      "SỔ THEO DÕI 35 TUYẾN",
+      "SỔ THEO DÕI 16 TUYẾN",
+      "SỔ THEO DÕI VỆ SINH CAMERA BA",
+    ],
+    optionalSheets: true,
+  },
+  { key: "SOJI", title: "2. SOJI", sheets: ["SỔ THEO DÕI SOJI"] },
 ];
 
-const TONGDA_GROUP = { key: "TONGDA", title: "4. TONGDA", sheets: ["Sổ theo dõi CAMERA"] };
+const TONGDA_GROUP = { key: "TONGDA", title: "3. TONGDA", sheets: ["Sổ theo dõi CAMERA"] };
 const VALID_STATUSES = ["DA SUA", "CHUA SUA", "DA KIEM TRA CHUA KHAC PHUC"];
 
 export const normalizeText = value => String(value ?? "")
@@ -205,13 +214,19 @@ async function loadWorkbook(file, fileLabel) {
 
 async function processGroups(workbook, groups, startDate, endDate, fileLabel) {
   const results = [];
-  const missingSheets = groups.flatMap(group => group.sheets).filter(name => !findWorksheet(workbook, name));
-  if (missingSheets.length) throw new Error(`${fileLabel}: cấu trúc không hợp lệ. Thiếu sheet: ${missingSheets.join(", ")}`);
 
   for (const group of groups) {
+    const availableSheets = group.sheets.filter(name => findWorksheet(workbook, name));
+    const missingSheets = group.optionalSheets
+      ? []
+      : group.sheets.filter(name => !findWorksheet(workbook, name));
+    if (missingSheets.length) {
+      throw new Error(`${fileLabel}: cấu trúc không hợp lệ. Thiếu sheet: ${missingSheets.join(", ")}`);
+    }
+
     const records = [];
     const datesSeen = new Set();
-    for (const sheetName of group.sheets) {
+    for (const sheetName of availableSheets) {
       const parsed = readSheet(findWorksheet(workbook, sheetName), startDate, endDate);
       if (!parsed.hasDateHeader || !parsed.hasColumnHeader) {
         throw new Error(`${fileLabel}: cấu trúc không hợp lệ tại sheet “${sheetName}”. Cần có tiêu đề ngày và các cột NGÀY, SỐ XE, CHI NHÁNH, TÌNH TRẠNG`);
