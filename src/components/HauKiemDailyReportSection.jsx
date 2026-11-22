@@ -58,7 +58,7 @@ export default function HauKiemDailyReportSection() {
     setBusy("upload");
     try {
       await uploadHauKiemDailyReport(file, profile);
-      toast.success("Đã tải File Báo cáo ngày lên Firebase");
+      toast.success("Đã tải File Báo cáo ngày lên Firestore");
     } catch (error) {
       toast.error(error.message || "Không thể tải File Báo cáo ngày lên");
     } finally {
@@ -96,7 +96,7 @@ export default function HauKiemDailyReportSection() {
     try {
       await deleteHauKiemDailyReport();
       setConfirmDelete(false);
-      toast.success("Đã xóa File Báo cáo ngày khỏi Firebase");
+      toast.success("Đã xóa File Báo cáo ngày khỏi Firestore");
     } catch (error) {
       toast.error(error.message || "Không thể xóa File Báo cáo ngày");
     } finally {
@@ -104,7 +104,7 @@ export default function HauKiemDailyReportSection() {
     }
   };
 
-  const publicCard = report && report.isVisible !== false;
+  const publicCard = report?.storageType === "firestore" && report.isVisible !== false;
 
   return <>
     {publicCard && <article className="mt-7 overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-card dark:border-emerald-900/60 dark:bg-slate-900">
@@ -135,7 +135,7 @@ export default function HauKiemDailyReportSection() {
           <div>
             <span className="text-[10px] font-bold uppercase tracking-[.16em] text-violet-700 dark:text-violet-300">Chỉ SuperAdmin</span>
             <h2 className="mt-1 text-lg font-bold text-ink dark:text-white">Quản lý File Báo cáo ngày</h2>
-            <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">Tải file lên Firebase, thay file hiện tại hoặc chủ động ẩn/hiển thị với người dùng.</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">Tải file lên Firestore, thay file hiện tại hoặc chủ động ẩn/hiển thị với người dùng.</p>
           </div>
         </div>
         {report && <span className={`inline-flex h-fit items-center rounded-full px-3 py-1.5 text-[11px] font-bold ${report.isVisible === false ? "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"}`}>
@@ -172,12 +172,12 @@ export default function HauKiemDailyReportSection() {
         </button>
       </div>}
       <input ref={inputRef} className="sr-only" type="file" accept={ACCEPTED_FILES} disabled={Boolean(busy)} onChange={upload}/>
-      <p className="mt-3 text-[11px] leading-5 text-slate-400">Hỗ trợ Excel, PDF, Word · Tối đa 25 MB. Khi thay file, file cũ sẽ được dọn khỏi Firebase Storage sau khi file mới được lưu thành công.</p>
+      <p className="mt-3 text-[11px] leading-5 text-slate-400">Hỗ trợ Excel, PDF, Word · Tối đa 500 KB. Khi thay file, nội dung và thông tin file được cập nhật đồng thời trong Firestore.</p>
     </section>}
 
     {confirmDelete && <ConfirmDialog
       title="Xóa File Báo cáo ngày?"
-      description={`File “${report?.originalName || "Báo cáo ngày"}” sẽ bị xóa khỏi Firebase Storage và không còn xuất hiện với người dùng.`}
+      description={`File “${report?.originalName || "Báo cáo ngày"}” sẽ bị xóa khỏi Firestore và không còn xuất hiện với người dùng.`}
       confirmLabel="Xóa file"
       busy={busy === "delete"}
       danger
