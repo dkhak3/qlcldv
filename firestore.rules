@@ -190,6 +190,11 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
+      match /haukiem_daily_reports/{reportId} {
+        allow read: if signedIn();
+        allow create, update, delete: if isSuperAdmin();
+      }
+
       match /saved_reports/{reportId} {
         allow create: if signedIn()
           && request.resource.data.ownerId == request.auth.uid
