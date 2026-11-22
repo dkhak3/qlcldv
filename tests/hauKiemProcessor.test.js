@@ -63,3 +63,25 @@ test("Hậu kiểm không tự điền ngày từ tên file khi ô NGÀY trong M
 
   assert.equal(row.date, "");
 });
+
+test("Hậu kiểm đọc giờ Date theo UTC như ATGT, không lệch múi giờ lịch sử Việt Nam", () => {
+  const originalTimeZone = process.env.TZ;
+  process.env.TZ = "Asia/Ho_Chi_Minh";
+  try {
+    // ExcelJS có thể trả ô thời gian hh:mm:ss thành Date dựa trên mốc 1899-12-30.
+    // Nếu dùng getHours() ở Việt Nam, thời gian sẽ lệch +07:06:30.
+    const excelTime = new Date(Date.UTC(1899, 11, 30, 13, 8, 0));
+    const expected = (13 * 3600 + 8 * 60) / 86400;
+    assert.ok(Math.abs(__test__.parseTime(excelTime) - expected) < 1e-10);
+  } finally {
+    if (originalTimeZone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimeZone;
+  }
+});
+
+test("Hậu kiểm giữ nguyên giờ dạng số Excel và chuỗi hh:mm:ss", () => {
+  const expectedNumeric = (13 * 3600 + 8 * 60) / 86400;
+  const expectedText = (13 * 3600 + 8 * 60 + 45) / 86400;
+  assert.ok(Math.abs(__test__.parseTime(0.5472222222222223) - expectedNumeric) < 1e-10);
+  assert.ok(Math.abs(__test__.parseTime(" 13:08:45 ") - expectedText) < 1e-10);
+});
