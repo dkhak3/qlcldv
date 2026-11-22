@@ -22,7 +22,7 @@ import {
 import {
   formatAtgtDailyReportDate,
   formatAtgtDailyReportSize,
-} from "../utils/hauKiemDailyReport";
+} from "../utils/atgtDailyReport";
 
 const ACCEPTED_FILES = ".xlsx,.xls,.xlsm,.pdf,.doc,.docx";
 
