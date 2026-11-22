@@ -191,8 +191,79 @@ service cloud.firestore {
       }
 
       match /haukiem_daily_reports/{reportId} {
-        allow read: if signedIn();
-        allow create, update, delete: if isSuperAdmin();
+        function reportMetadataPath() {
+          return /databases/$(database)/documents/haukiem_daily_reports/current;
+        }
+
+        function reportFilePath() {
+          return /databases/$(database)/documents/haukiem_daily_reports/current_file;
+        }
+
+        function reportMetadataIsVisible() {
+          return exists(reportMetadataPath())
+            && get(reportMetadataPath()).data.storageType == 'firestore'
+            && get(reportMetadataPath()).data.isVisible == true;
+        }
+
+        function validReportMetadata() {
+          return request.resource.data.keys().hasAll([
+              'storageType', 'originalName', 'contentType', 'size', 'isVisible',
+              'updatedAt', 'updatedBy', 'updatedByName', 'createdAt'
+            ])
+            && request.resource.data.keys().hasOnly([
+              'storageType', 'originalName', 'contentType', 'size', 'isVisible',
+              'updatedAt', 'updatedBy', 'updatedByName', 'createdAt'
+            ])
+            && request.resource.data.storageType == 'firestore'
+            && request.resource.data.originalName is string
+            && request.resource.data.contentType is string
+            && request.resource.data.size is int
+            && request.resource.data.size > 0
+            && request.resource.data.size <= 500 * 1024
+            && request.resource.data.isVisible is bool
+            && request.resource.data.updatedBy is string
+            && request.resource.data.updatedByName is string
+            && existsAfter(reportFilePath())
+            && getAfter(reportFilePath()).data.fileData is bytes
+            && getAfter(reportFilePath()).data.fileData.size() == request.resource.data.size
+            && getAfter(reportFilePath()).data.originalName == request.resource.data.originalName
+            && getAfter(reportFilePath()).data.contentType == request.resource.data.contentType;
+        }
+
+        function validReportFile() {
+          return request.resource.data.keys().hasAll([
+              'fileData', 'originalName', 'contentType', 'size', 'updatedAt'
+            ])
+            && request.resource.data.keys().hasOnly([
+              'fileData', 'originalName', 'contentType', 'size', 'updatedAt'
+            ])
+            && request.resource.data.fileData is bytes
+            && request.resource.data.fileData.size() > 0
+            && request.resource.data.fileData.size() <= 500 * 1024
+            && request.resource.data.size is int
+            && request.resource.data.size == request.resource.data.fileData.size()
+            && request.resource.data.originalName is string
+            && request.resource.data.contentType is string
+            && existsAfter(reportMetadataPath())
+            && getAfter(reportMetadataPath()).data.storageType == 'firestore'
+            && getAfter(reportMetadataPath()).data.size == request.resource.data.size
+            && getAfter(reportMetadataPath()).data.originalName == request.resource.data.originalName
+            && getAfter(reportMetadataPath()).data.contentType == request.resource.data.contentType;
+        }
+
+        allow get: if signedIn() && (
+          reportId == 'current'
+          || (reportId == 'current_file' && (isSuperAdmin() || reportMetadataIsVisible()))
+        );
+        allow list: if false;
+        allow create, update: if isSuperAdmin() && (
+          (reportId == 'current' && validReportMetadata())
+          || (reportId == 'current_file' && validReportFile())
+        );
+        allow delete: if isSuperAdmin() && (
+          (reportId == 'current' && !existsAfter(reportFilePath()))
+          || (reportId == 'current_file' && !existsAfter(reportMetadataPath()))
+        );
       }
 
       match /saved_reports/{reportId} {
